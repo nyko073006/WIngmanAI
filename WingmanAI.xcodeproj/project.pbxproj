@@ -6,23 +6,56 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		210F8C2D2F2E8E06000C4B92 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C2C2F2E8E06000C4B92 /* Auth */; };
+		210F8C2F2F2E8E06000C4B92 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C2E2F2E8E06000C4B92 /* Functions */; };
+		210F8C312F2E8E06000C4B92 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C302F2E8E06000C4B92 /* PostgREST */; };
+		210F8C332F2E8E06000C4B92 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C322F2E8E06000C4B92 /* Realtime */; };
+		210F8C352F2E8E06000C4B92 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C342F2E8E06000C4B92 /* Storage */; };
+		210F8C372F2E8E06000C4B92 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C362F2E8E06000C4B92 /* Supabase */; };
+		2173AEC42F2EB68400B78445 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEAF2F2EB68400B78445 /* MainView.swift */; };
+		2173AEC52F2EB68400B78445 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB02F2EB68400B78445 /* RootView.swift */; };
+		2173AEC62F2EB68400B78445 /* WIngmanAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB12F2EB68400B78445 /* WIngmanAIApp.swift */; };
+		2173AEC72F2EB68400B78445 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB32F2EB68400B78445 /* AppError.swift */; };
+		2173AEC82F2EB68400B78445 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB42F2EB68400B78445 /* AuthService.swift */; };
+		2173AEC92F2EB68400B78445 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB52F2EB68400B78445 /* AuthView.swift */; };
+		2173AECB2F2EB68400B78445 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB82F2EB68400B78445 /* SupabaseClient.swift */; };
+		2173AECC2F2EB68400B78445 /* OnboardingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEBA2F2EB68400B78445 /* OnboardingService.swift */; };
+		2173AECD2F2EB68400B78445 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEBB2F2EB68400B78445 /* OnboardingView.swift */; };
+		2173AECE2F2EB68400B78445 /* MainVIew.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEBE2F2EB68400B78445 /* MainVIew.swift */; };
+		2173AECF2F2EB68400B78445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEC12F2EB68400B78445 /* ContentView.swift */; };
+		2173AED02F2EB68400B78445 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2173AEC02F2EB68400B78445 /* Assets.xcassets */; };
+		2173AED12F2EB68400B78445 /* Supabase.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2173AEC22F2EB68400B78445 /* Supabase.plist */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		210F8C1D2F2E8A1F000C4B92 /* WIngmanAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WIngmanAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2173AEAF2F2EB68400B78445 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		2173AEB02F2EB68400B78445 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		2173AEB12F2EB68400B78445 /* WIngmanAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WIngmanAIApp.swift; sourceTree = "<group>"; };
+		2173AEB32F2EB68400B78445 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		2173AEB42F2EB68400B78445 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		2173AEB52F2EB68400B78445 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		2173AEB82F2EB68400B78445 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
+		2173AEBA2F2EB68400B78445 /* OnboardingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingService.swift; sourceTree = "<group>"; };
+		2173AEBB2F2EB68400B78445 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		2173AEBE2F2EB68400B78445 /* MainVIew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainVIew.swift; sourceTree = "<group>"; };
+		2173AEC02F2EB68400B78445 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2173AEC12F2EB68400B78445 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2173AEC22F2EB68400B78445 /* Supabase.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Supabase.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		210F8C1F2F2E8A1F000C4B92 /* WIngmanAI */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = WIngmanAI;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		210F8C1A2F2E8A1F000C4B92 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				210F8C312F2E8E06000C4B92 /* PostgREST in Frameworks */,
+				210F8C2F2F2E8E06000C4B92 /* Functions in Frameworks */,
+				210F8C372F2E8E06000C4B92 /* Supabase in Frameworks */,
+				210F8C2D2F2E8E06000C4B92 /* Auth in Frameworks */,
+				210F8C352F2E8E06000C4B92 /* Storage in Frameworks */,
+				210F8C332F2E8E06000C4B92 /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,8 +65,8 @@
 		210F8C142F2E8A1F000C4B92 = {
 			isa = PBXGroup;
 			children = (
-				210F8C1F2F2E8A1F000C4B92 /* WIngmanAI */,
 				210F8C1E2F2E8A1F000C4B92 /* Products */,
+				2173AEC32F2EB68400B78445 /* WIngmanAI */,
 			);
 			sourceTree = "<group>";
 		};
@@ -43,6 +76,74 @@
 				210F8C1D2F2E8A1F000C4B92 /* WIngmanAI.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2173AEB22F2EB68400B78445 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2173AEAF2F2EB68400B78445 /* MainView.swift */,
+				2173AEB02F2EB68400B78445 /* RootView.swift */,
+				2173AEB12F2EB68400B78445 /* WIngmanAIApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		2173AEB62F2EB68400B78445 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				2173AEB32F2EB68400B78445 /* AppError.swift */,
+				2173AEB42F2EB68400B78445 /* AuthService.swift */,
+				2173AEB52F2EB68400B78445 /* AuthView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		2173AEB92F2EB68400B78445 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				2173AEB82F2EB68400B78445 /* SupabaseClient.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		2173AEBC2F2EB68400B78445 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				2173AEBA2F2EB68400B78445 /* OnboardingService.swift */,
+				2173AEBB2F2EB68400B78445 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		2173AEBD2F2EB68400B78445 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		2173AEBF2F2EB68400B78445 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				2173AEBE2F2EB68400B78445 /* MainVIew.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		2173AEC32F2EB68400B78445 /* WIngmanAI */ = {
+			isa = PBXGroup;
+			children = (
+				2173AEB22F2EB68400B78445 /* App */,
+				2173AEB62F2EB68400B78445 /* Auth */,
+				2173AEB92F2EB68400B78445 /* Core */,
+				2173AEBC2F2EB68400B78445 /* Onboarding */,
+				2173AEBD2F2EB68400B78445 /* Profile */,
+				2173AEBF2F2EB68400B78445 /* UI */,
+				2173AEC02F2EB68400B78445 /* Assets.xcassets */,
+				2173AEC12F2EB68400B78445 /* ContentView.swift */,
+				2173AEC22F2EB68400B78445 /* Supabase.plist */,
+			);
+			path = WIngmanAI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -60,11 +161,14 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				210F8C1F2F2E8A1F000C4B92 /* WIngmanAI */,
-			);
 			name = WIngmanAI;
 			packageProductDependencies = (
+				210F8C2C2F2E8E06000C4B92 /* Auth */,
+				210F8C2E2F2E8E06000C4B92 /* Functions */,
+				210F8C302F2E8E06000C4B92 /* PostgREST */,
+				210F8C322F2E8E06000C4B92 /* Realtime */,
+				210F8C342F2E8E06000C4B92 /* Storage */,
+				210F8C362F2E8E06000C4B92 /* Supabase */,
 			);
 			productName = WIngmanAI;
 			productReference = 210F8C1D2F2E8A1F000C4B92 /* WIngmanAI.app */;
@@ -94,6 +198,9 @@
 			);
 			mainGroup = 210F8C142F2E8A1F000C4B92;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 210F8C1E2F2E8A1F000C4B92 /* Products */;
 			projectDirPath = "";
@@ -109,6 +216,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2173AED02F2EB68400B78445 /* Assets.xcassets in Resources */,
+				2173AED12F2EB68400B78445 /* Supabase.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +228,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2173AEC42F2EB68400B78445 /* MainView.swift in Sources */,
+				2173AEC52F2EB68400B78445 /* RootView.swift in Sources */,
+				2173AEC62F2EB68400B78445 /* WIngmanAIApp.swift in Sources */,
+				2173AEC72F2EB68400B78445 /* AppError.swift in Sources */,
+				2173AEC82F2EB68400B78445 /* AuthService.swift in Sources */,
+				2173AEC92F2EB68400B78445 /* AuthView.swift in Sources */,
+				2173AECB2F2EB68400B78445 /* SupabaseClient.swift in Sources */,
+				2173AECC2F2EB68400B78445 /* OnboardingService.swift in Sources */,
+				2173AECD2F2EB68400B78445 /* OnboardingView.swift in Sources */,
+				2173AECE2F2EB68400B78445 /* MainVIew.swift in Sources */,
+				2173AECF2F2EB68400B78445 /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,7 +261,7 @@
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
@@ -150,7 +270,7 @@
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
@@ -203,7 +323,7 @@
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
@@ -212,7 +332,7 @@
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
@@ -351,6 +471,50 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		210F8C2C2F2E8E06000C4B92 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		210F8C2E2F2E8E06000C4B92 /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		210F8C302F2E8E06000C4B92 /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		210F8C322F2E8E06000C4B92 /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		210F8C342F2E8E06000C4B92 /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		210F8C362F2E8E06000C4B92 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 210F8C152F2E8A1F000C4B92 /* Project object */;
 }
