@@ -1,24 +1,61 @@
 import Foundation
 import Supabase
 
-/// Central place to configure and access the Supabase client used across the app.
+/// Centralized Supabase client configuration.
 ///
-/// TODO: Replace the placeholder `supabaseURL` and `supabaseAnonKey` with your project's values.
-/// You can keep them in a configuration plist or environment if preferred.
+/// Add these keys to your app’s Info.plist:
+/// - SUPABASE_URL (e.g. https://xxxx.supabase.co)
+/// - SUPABASE_ANON_KEY (sb_publishable_...)
 final class SupabaseClientProvider {
     static let shared = SupabaseClientProvider()
 
-    /// The shared Supabase client instance.
+    let supabaseURL: URL
+    let anonKey: String
     let client: SupabaseClient
 
     private init() {
-        // TODO: Replace with your real Supabase URL and anon key.
-        let supabaseURL = URL(string: "https://YOUR-PROJECT-REF.supabase.co")!
-        let supabaseAnonKey = "YOUR-ANON-KEY"
+        // Read + sanitize SUPABASE_URL
+        let rawURL = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // If someone pasted without scheme, fix it.
+        let normalizedURLString: String =
+            rawURL.hasPrefix("https://") || rawURL.hasPrefix("http://")
+            ? rawURL
+            : "https://\(rawURL)"
+
+        guard
+            !rawURL.isEmpty,
+            let url = URL(string: normalizedURLString),
+            url.host != nil
+        else {
+            fatalError("Missing/invalid SUPABASE_URL in Info.plist")
+        }
+
+        self.supabaseURL = url
+
+        guard
+            let anonKeyRaw = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String
+        else {
+            fatalError("Missing SUPABASE_ANON_KEY in Info.plist")
+        }
+
+        let anonKey = anonKeyRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !anonKey.isEmpty else {
+            fatalError("Missing SUPABASE_ANON_KEY in Info.plist")
+        }
+
+        self.anonKey = anonKey
 
         self.client = SupabaseClient(
-            supabaseURL: supabaseURL,
-            supabaseKey: supabaseAnonKey
+            supabaseURL: self.supabaseURL,
+            supabaseKey: self.anonKey,
+            options: .init(
+                auth: .init(
+                    autoRefreshToken: true,
+                    emitLocalSessionAsInitialSession: true
+                )
+            )
         )
     }
 }

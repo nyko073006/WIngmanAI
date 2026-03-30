@@ -1,13 +1,18 @@
 import Foundation
 
-public struct AppError: Error, Identifiable, Equatable {
-    public let id: UUID
-    public let title: String
-    public let message: String
+struct AppError: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let title: String
+    let message: String
 
-    public init(id: UUID = UUID(), title: String, message: String) {
+    init(id: UUID = UUID(), title: String, message: String) {
         self.id = id
         self.title = title
         self.message = message
     }
+
+    static func simple(_ title: String, _ message: String) -> AppError {
+        AppError(title: title, message: message)
+    }
 }
+

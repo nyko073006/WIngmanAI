@@ -13,6 +13,8 @@ struct LikesView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    @StateObject private var premium = PremiumService.shared
+    @State private var showSubscription = false
     @State private var isLoading = false
     @State private var likers: [LikerProfile] = []
     @State private var revealedId: UUID? = nil
@@ -20,12 +22,12 @@ struct LikesView: View {
     @State private var countdownTimer: Timer? = nil
     @State private var errorText: String? = nil
 
-    private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
+    private let brand    = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
     private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
 
     // UserDefaults keys
-    private let cooldownKey = "likes_last_reveal_date"
-    private let revealedIdsKey = "likes_revealed_ids"
+    private let cooldownKey      = "likes_last_reveal_date"
+    private let revealedIdsKey   = "likes_revealed_ids"
     private let cooldownDuration: TimeInterval = 6 * 3600
 
     // MARK: - Computed
@@ -62,7 +64,10 @@ struct LikesView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-                        Button("Erneut versuchen") { Task { await loadLikers() } }
+                        Button("Erneut versuchen") {
+                            errorText = nil
+                            Task { await loadLikers() }
+                        }
                             .buttonStyle(.borderedProminent)
                     }
                     .padding()
@@ -84,29 +89,50 @@ struct LikesView: View {
         }
         .task { await loadLikers() }
         .onDisappear { countdownTimer?.invalidate() }
+        .sheet(isPresented: $showSubscription) { SubscriptionView() }
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
+            Spacer()
+
+            // Layered glow icon
             ZStack {
                 Circle()
+                    .fill(brand.opacity(0.06))
+                    .frame(width: 200, height: 200)
+                Circle()
                     .fill(brand.opacity(0.10))
-                    .frame(width: 100, height: 100)
-                Image(systemName: "heart.slash")
-                    .font(.system(size: 38))
-                    .foregroundStyle(brand.opacity(0.5))
+                    .frame(width: 140, height: 140)
+                Circle()
+                    .fill(
+                        LinearGradient(colors: [brand.opacity(0.22), brandAlt.opacity(0.14)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .frame(width: 96, height: 96)
+                Image(systemName: "heart.slash.fill")
+                    .font(.system(size: 38, weight: .semibold))
+                    .foregroundStyle(
+                        LinearGradient(colors: [brand, brandAlt],
+                                       startPoint: .top, endPoint: .bottom)
+                    )
+                    .accessibilityLabel("Keine Likes")
             }
-            VStack(spacing: 8) {
-                Text("Noch keine Likes")
-                    .font(.system(.title3, design: .rounded).weight(.bold))
-                Text("Werde aktiv und like andere Profile –\ndann kommen die Likes zu dir.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-            }
+            .padding(.bottom, 36)
+
+            Text("Noch keine Likes")
+                .font(.system(.title2, design: .rounded).weight(.bold))
+                .padding(.bottom, 10)
+
+            Text("Sei aktiv und like andere Profile –\ndann kommen die Likes zu dir.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+
+            Spacer()
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -115,154 +141,209 @@ struct LikesView: View {
     // MARK: - Liker Content
 
     private var likerContent: some View {
-        VStack(spacing: 24) {
-            // Count pill
-            HStack(spacing: 6) {
-                Image(systemName: "heart.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(brand)
-                Text(likers.count == 1 ? "1 Person mag dich" : "\(likers.count) Personen mögen dich")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(brand)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(brand.opacity(0.10))
-            .clipShape(Capsule())
-            .padding(.top, 8)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+                // Count pill
+                HStack(spacing: 6) {
+                    Image(systemName: "heart.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(brand)
+                    Text(likers.count == 1
+                         ? "1 Person mag dich"
+                         : "\(likers.count) Personen mögen dich")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(brand)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(brand.opacity(0.10))
+                .clipShape(Capsule())
+                .padding(.top, 8)
 
-            if let liker = pendingLiker {
-                likerCard(liker)
-            }
+                if let liker = pendingLiker {
+                    likerCard(liker)
+                }
 
-            Spacer()
+                Spacer(minLength: 32)
+            }
+            .padding(.horizontal, 18)
         }
-        .padding(.horizontal, 20)
     }
+
+    // MARK: - Liker Card
 
     @ViewBuilder
     private func likerCard(_ liker: LikerProfile) -> some View {
         let isRevealed = revealedId == liker.userId
 
         VStack(spacing: 0) {
-            // Photo area
+            // ── Card ──────────────────────────────────────────────────────────
             ZStack(alignment: .bottom) {
                 likerPhoto(liker, revealed: isRevealed)
 
-                if !isRevealed {
-                    // Frosted lock overlay
-                    VStack(spacing: 12) {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white)
-                            .shadow(radius: 4)
-                        if canReveal {
-                            Button {
-                                reveal(liker)
-                            } label: {
-                                Text("Enthüllen")
+                if isRevealed {
+                    // Name / age / city badge on card
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(liker.displayName)
+                                .font(.system(.title, design: .rounded).weight(.bold))
+                                .foregroundStyle(.white)
+                            if let age = liker.age {
+                                Text("\(age)")
+                                    .font(.title2.weight(.medium))
+                                    .foregroundStyle(.white.opacity(0.80))
+                            }
+                        }
+                        if let city = liker.city, !city.isEmpty {
+                            Label(city, systemImage: "mappin.fill")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.72))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 26)
+
+                } else {
+                    // Glassmorphism lock overlay
+                    ZStack {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+
+                        VStack(spacing: 22) {
+                            // Glowing lock
+                            ZStack {
+                                Circle()
+                                    .fill(brand.opacity(0.30))
+                                    .frame(width: 80, height: 80)
+                                    .blur(radius: 20)
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 38, weight: .bold))
+                                    .foregroundStyle(
+                                        LinearGradient(colors: [brand, brandAlt],
+                                                       startPoint: .top, endPoint: .bottom)
+                                    )
+                            }
+
+                            if canReveal {
+                                VStack(spacing: 6) {
+                                    Text("Wer mag dich?")
+                                        .font(.system(.headline, design: .rounded).weight(.bold))
+                                        .foregroundStyle(.primary)
+                                    Text("Tippe um das Profil zu enthüllen")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Button { reveal(liker) } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "sparkles")
+                                        Text("Enthüllen")
+                                    }
                                     .font(.headline.weight(.semibold))
                                     .foregroundStyle(.white)
-                                    .padding(.horizontal, 32)
-                                    .padding(.vertical, 13)
+                                    .padding(.horizontal, 38)
+                                    .padding(.vertical, 15)
                                     .background(
                                         LinearGradient(colors: [brand, brandAlt],
                                                        startPoint: .leading, endPoint: .trailing)
                                     )
                                     .clipShape(Capsule())
-                                    .shadow(color: brand.opacity(0.5), radius: 14, y: 6)
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            VStack(spacing: 4) {
-                                Text("Nächste Enthüllung in")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.8))
-                                Text(countdownText)
-                                    .font(.system(.title3, design: .monospaced).weight(.bold))
-                                    .foregroundStyle(.white)
+                                    .shadow(color: brand.opacity(0.55), radius: 20, y: 8)
+                                }
+                                .buttonStyle(.plain)
+
+                            } else {
+                                VStack(spacing: 16) {
+                                    VStack(spacing: 6) {
+                                        Text("Nächste Enthüllung in")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                        Text(countdownText)
+                                            .font(.system(.title, design: .monospaced).weight(.bold))
+                                            .foregroundStyle(.primary)
+                                    }
+
+                                    if !premium.isPremium {
+                                        Button { showSubscription = true } label: {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "crown.fill")
+                                                    .font(.caption.weight(.bold))
+                                                Text("Sofort mit Premium")
+                                                    .font(.subheadline.weight(.semibold))
+                                            }
+                                            .foregroundStyle(brand)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 11)
+                                            .background(brand.opacity(0.10))
+                                            .clipShape(Capsule())
+                                            .overlay(
+                                                Capsule().stroke(brand.opacity(0.28), lineWidth: 1)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
                         }
                     }
-                    .padding(.bottom, 32)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 380)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(isRevealed ? brand.opacity(0.25) : Color.clear, lineWidth: 1.5)
-            )
-            .shadow(color: .black.opacity(0.12), radius: 20, y: 10)
+            .frame(height: 490)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .shadow(color: .black.opacity(0.18), radius: 30, y: 14)
 
-            // Info & action (only when revealed)
+            // ── Action buttons (revealed only) ────────────────────────────────
             if isRevealed {
-                VStack(spacing: 16) {
-                    VStack(spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(liker.displayName)
-                                .font(.title2.weight(.bold))
-                            if let age = liker.age {
-                                Text("\(age)")
-                                    .font(.title3)
-                                    .foregroundStyle(.secondary)
-                            }
+                HStack(spacing: 14) {
+                    // Pass
+                    Button { acted(liker, liked: false) } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color(.systemBackground))
+                                .shadow(color: .black.opacity(0.10), radius: 14, y: 5)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(Color(.systemGray3))
                         }
-                        if let city = liker.city, !city.isEmpty {
-                            Label(city, systemImage: "mappin")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
+                        .frame(width: 64, height: 64)
                     }
+                    .accessibilityLabel("Ablehnen")
+                    .buttonStyle(.plain)
 
-                    HStack(spacing: 14) {
-                        // Pass
-                        Button {
-                            acted(liker, liked: false)
-                        } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(Color(.systemBackground))
-                                    .shadow(color: Color(.systemGray4).opacity(0.5), radius: 10, y: 4)
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundStyle(Color(.systemGray2))
+                    // Like back
+                    Button { acted(liker, liked: true) } label: {
+                        ZStack {
+                            Capsule()
+                                .fill(
+                                    LinearGradient(colors: [brand, brandAlt],
+                                                   startPoint: .leading, endPoint: .trailing)
+                                )
+                                .shadow(color: brand.opacity(0.52), radius: 20, y: 8)
+                            HStack(spacing: 8) {
+                                Image(systemName: "heart.fill")
+                                    .font(.system(size: 17, weight: .semibold))
+                                Text("Auch liken")
+                                    .font(.headline.weight(.semibold))
                             }
-                            .frame(width: 58, height: 58)
+                            .foregroundStyle(.white)
                         }
-
-                        // Like back
-                        Button {
-                            acted(liker, liked: true)
-                        } label: {
-                            ZStack {
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(colors: [brand, brandAlt],
-                                                       startPoint: .leading, endPoint: .trailing)
-                                    )
-                                    .shadow(color: brand.opacity(0.45), radius: 14, y: 6)
-                                HStack(spacing: 8) {
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Text("Auch liken")
-                                        .font(.headline.weight(.semibold))
-                                }
-                                .foregroundStyle(.white)
-                            }
-                            .frame(height: 58)
-                        }
+                        .frame(height: 64)
                     }
+                    .buttonStyle(.plain)
                 }
-                .padding(.top, 20)
+                .padding(.top, 22)
+                .padding(.horizontal, 4)
             }
         }
     }
 
+    // MARK: - Photo Layer
+
     @ViewBuilder
     private func likerPhoto(_ liker: LikerProfile, revealed: Bool) -> some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack {
             if let url = liker.photoUrl.flatMap({ URL(string: $0) }) {
                 CachedAsyncImage(url: url) { phase in
                     switch phase {
@@ -273,31 +354,33 @@ struct LikesView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 380)
-                .blur(radius: revealed ? 0 : 22)
-                .animation(.easeInOut(duration: 0.4), value: revealed)
+                .frame(height: 490)
+                .blur(radius: revealed ? 0 : 28)
+                .animation(.easeInOut(duration: 0.45), value: revealed)
             } else {
                 ZStack {
-                    LinearGradient(colors: [brand.opacity(0.35), brand.opacity(0.15)],
+                    LinearGradient(colors: [brand.opacity(0.40), brandAlt.opacity(0.20)],
                                    startPoint: .top, endPoint: .bottom)
                     Image(systemName: "person.fill")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.system(size: 80))
+                        .foregroundStyle(.white.opacity(0.40))
                 }
-                .blur(radius: revealed ? 0 : 18)
+                .blur(radius: revealed ? 0 : 20)
             }
 
-            // Gradient
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.35),
-                    .init(color: .black.opacity(0.65), location: 1.0)
-                ],
-                startPoint: .top, endPoint: .bottom
-            )
-            .frame(maxWidth: .infinity)
-            .frame(height: 380)
-            .allowsHitTesting(false)
+            // Bottom gradient for readability when revealed
+            if revealed {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear,              location: 0.40),
+                        .init(color: .black.opacity(0.78), location: 1.00)
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: 490)
+                .allowsHitTesting(false)
+            }
         }
     }
 
@@ -342,14 +425,23 @@ struct LikesView: View {
                 let created_at: String?
             }
             let client = SupabaseClientProvider.shared.client
-            let liked: [SwipeRow] = try await client
+            let usageLimits = UsageLimitService.shared
+            let isoFormatter = ISO8601DateFormatter()
+
+            var query = client
                 .from("swipes")
                 .select("swiper_id,created_at")
                 .eq("target_id", value: myId.uuidString)
                 .eq("is_like", value: true)
+
+            // Likes-Sichtfenster je nach Tier anwenden
+            if let windowDate = usageLimits.likesWindowDate {
+                query = query.gte("created_at", value: isoFormatter.string(from: windowDate))
+            }
+
+            let liked: [SwipeRow] = try await query
                 .order("created_at", ascending: false)
-                .execute()
-                .value
+                .execute().value
 
             // 2. IDs I've already acted on
             let acted = revealedIds
@@ -377,20 +469,22 @@ struct LikesView: View {
                 let sort_order: Int?
             }
 
-            let profiles: [ProfileRow] = try await client
+            async let profilesTask: [ProfileRow] = client
                 .from("profiles")
                 .select("user_id,display_name,bio,city,birthdate")
                 .in("user_id", values: Array(ids))
                 .execute()
                 .value
 
-            let photos: [PhotoRow] = try await client
+            async let photosTask: [PhotoRow] = client
                 .from("photos")
                 .select("user_id,url,is_primary,sort_order")
                 .in("user_id", values: Array(ids))
                 .order("sort_order", ascending: true)
                 .execute()
                 .value
+
+            let (profiles, photos) = try await (profilesTask, photosTask)
 
             // Build photo map (primary first)
             var photoMap: [UUID: String] = [:]

@@ -1,116 +1,358 @@
-//
-//  DiscoverViewModel.swift
-//  WingmanAI
-//
-//  Created by Nyko on 09.02.26.
-//
-
 import Foundation
 import Combine
 import Supabase
+import StoreKit
+import UIKit
+
+private let discoverISO8601: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
+// Moved out of load() so the type is resolved once, not on every call
+private struct DiscoverRow: Decodable {
+    let user_id: UUID
+    let updated_at: Date?
+    let display_name: String?
+    let city: String?
+    let bio: String?
+    let interests: [String]?
+    let birthdate: String?
+    let primary_photo_url: String?
+    let distance_km: Int?
+    let last_active_at: Date?
+}
 
 @MainActor
 final class DiscoverViewModel: ObservableObject {
-    @Published var isLoading = false
-    @Published var errorText: String?
-
-    @Published var profiles: [PublicProfile] = []
-    @Published var currentIndex: Int = 0
-    @Published var showMatchAlert = false
 
     private let swipeService = SwipeService.shared
-    private let matchService = MatchService.shared
+    private let pageSize: Int = 40
+    private var preloadTask: Task<Void, Never>? = nil
+
+    // Core paging state
+    @Published private(set) var profiles: [PublicProfile] = []
+    private var seenUserIds: Set<UUID> = []
+    private var hasMore: Bool = true
+    private var cursorUpdatedAt: Date? = nil
+    private var cursorUserId: UUID? = nil
+
+    // UI state
+    @Published var isLoading: Bool = false
+    @Published var isSwiping: Bool = false
+    @Published var errorText: String? = nil
+    @Published var showSwipeLimitSheet: Bool = false
+    @Published var showRewindLimitSheet: Bool = false
+
+    // Relaxed discover (user-triggered)
+    @Published var isRelaxed: Bool = false
+
+    // Match overlay state
+    @Published var showMatchAlert: Bool = false
+    @Published var matchedUser: PublicProfile? = nil
+    @Published var matchedMatchId: UUID? = nil
+    @Published var matchedUserPhotoUrl: String? = nil
+
+    // Photo URL lookup for cards/overlay (must be String URLs)
+    @Published var primaryPhotoByUserId: [UUID: String] = [:]
+    // All photos per user (ordered by sort_order) for gallery
+    @Published var allPhotosByUserId: [UUID: [String]] = [:]
+
+    // Undo last swipe
+    @Published private(set) var lastSwipedProfile: PublicProfile? = nil
+    private var lastSwipedPhotoUrls: [String] = []
+    private(set) var lastSwipeWasLike: Bool = false
+
+    // Convenience for the view
+    var currentProfile: PublicProfile? { profiles.first }
+
+    // MARK: - Public API
+
+    func refresh(myUserId: UUID) async {
+        preloadTask?.cancel()
+        preloadTask = nil
+        profiles = []
+        primaryPhotoByUserId = [:]
+        allPhotosByUserId = [:]
+        seenUserIds = []
+        hasMore = true
+        cursorUpdatedAt = nil
+        cursorUserId = nil
+        showMatchAlert = false
+        matchedUser = nil
+        matchedMatchId = nil
+        matchedUserPhotoUrl = nil
+        isRelaxed = false
+        lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+        await load(myUserId: myUserId)
+    }
+
+    func setRelaxed(_ value: Bool, myUserId: UUID) async {
+        preloadTask?.cancel()
+        preloadTask = nil
+        isRelaxed = value
+        profiles = []
+        primaryPhotoByUserId = [:]
+        allPhotosByUserId = [:]
+        seenUserIds = []
+        hasMore = true
+        cursorUpdatedAt = nil
+        cursorUserId = nil
+        errorText = nil
+        showMatchAlert = false
+        matchedUser = nil
+        matchedMatchId = nil
+        matchedUserPhotoUrl = nil
+        lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+        await load(myUserId: myUserId)
+    }
 
     func load(myUserId: UUID) async {
+        guard hasMore, !isLoading else { return }
+
         isLoading = true
         errorText = nil
         defer { isLoading = false }
 
+        var params: [String: String] = [
+            "p_limit": String(pageSize),
+            "p_relaxed": isRelaxed ? "true" : "false"
+        ]
+        if let cu = cursorUpdatedAt {
+            params["p_cursor_updated_at"] = discoverISO8601.string(from: cu)
+        }
+        if let cid = cursorUserId {
+            params["p_cursor_user_id"] = cid.uuidString
+        }
+
+        let rows: [DiscoverRow]
         do {
-            let swiped = try await swipeService.fetchSwipedTargetIds(swiperId: myUserId)
-            let blocked = try await fetchBlockedUserIds(myUserId: myUserId)
-            let matched = try await fetchMatchedUserIds(myUserId: myUserId)
+            rows = try await SupabaseClientProvider.shared.client
+                .rpc("get_discover_profiles", params: params)
+                .execute()
+                .value
+        } catch {
+            self.errorText = error.localizedDescription
+            return
+        }
 
-            let excluded = swiped.union(blocked).union(matched).union([myUserId])
+        let existingIds = Set(self.profiles.map { $0.id })
 
-            let fetched: [PublicProfile] = try await SupabaseClientProvider.shared.client
-                .from("profiles")
-                .select("user_id,display_name,city,bio,interests,birthdate")
-                .eq("is_active", value: true)
-                .eq("discovery_enabled", value: true)
-                .or("onboarding_complete.eq.true,is_onboarded.eq.true")
-                .limit(80)
+        let candidates: [PublicProfile] = rows.map {
+            PublicProfile(
+                id: $0.user_id,
+                displayName: $0.display_name ?? "",
+                city: $0.city,
+                bio: $0.bio ?? "",
+                interests: $0.interests ?? [],
+                birthdate: $0.birthdate,
+                distanceKm: $0.distance_km,
+                lastActiveAt: $0.last_active_at
+            )
+        }
+
+        let newOnes = candidates.filter { !seenUserIds.contains($0.id) && !existingIds.contains($0.id) }
+        if !newOnes.isEmpty {
+            self.profiles.append(contentsOf: newOnes)
+            self.seenUserIds.formUnion(newOnes.map { $0.id })
+        }
+
+        for r in rows {
+            if let url = r.primary_photo_url {
+                self.primaryPhotoByUserId[r.user_id] = url
+            }
+        }
+
+        if let last = rows.last {
+            cursorUpdatedAt = last.updated_at
+            cursorUserId = last.user_id
+        }
+
+        if rows.count < pageSize {
+            hasMore = false
+        }
+
+        // Fetch all photos for new profiles (batch)
+        let newUserIds = newOnes.map { $0.id }
+        if !newUserIds.isEmpty {
+            preloadTask?.cancel()
+            preloadTask = Task {
+                await self.fetchAllPhotos(for: newUserIds)
+            }
+        }
+    }
+
+    private func fetchAllPhotos(for userIds: [UUID]) async {
+        struct PhotoRow: Decodable {
+            let user_id: UUID
+            let url: String
+            let sort_order: Int?
+            let is_primary: Bool?
+        }
+        do {
+            let photos: [PhotoRow] = try await SupabaseClientProvider.shared.client
+                .from("photos")
+                .select("user_id,url,sort_order,is_primary")
+                .in("user_id", values: userIds.map { $0.uuidString })
+                .order("sort_order", ascending: true)
                 .execute()
                 .value
 
-            self.profiles = fetched.filter { !excluded.contains($0.id) }
-            self.currentIndex = 0
+            var grouped: [UUID: [String]] = [:]
+            for p in photos {
+                grouped[p.user_id, default: []].append(p.url)
+            }
+            for (uid, urls) in grouped {
+                self.allPhotosByUserId[uid] = urls
+            }
+            
+            // Preload images into disk/memory cache for instant swipe rendering
+            Task.detached(priority: .background) {
+                for photo in photos {
+                    guard let url = URL(string: photo.url) else { continue }
+                    await ImageCache.shared.preload(url)
+                }
+            }
         } catch {
-            self.errorText = error.localizedDescription
+            print("Photos fetch failed (background): \(error)")
         }
     }
 
     func swipe(myUserId: UUID, isLike: Bool) async {
-        guard currentIndex < profiles.count else { return }
-        let target = profiles[currentIndex]
+        guard !isSwiping else { return }
+        guard let target = profiles.first else { return }
+
+        guard UsageLimitService.shared.canSwipe() else {
+            showSwipeLimitSheet = true
+            return
+        }
+
+        isSwiping = true
+        defer { isSwiping = false }
+
+        errorText = nil
+
+        // Capture photo URLs before clearing (needed for match overlay + undo)
+        let targetPhotoUrl = allPhotosByUserId[target.id]?.first ?? primaryPhotoByUserId[target.id]
+        let targetAllPhotos = allPhotosByUserId[target.id] ?? (targetPhotoUrl.map { [$0] } ?? [])
+
+        // Save for potential undo (overwrite any previous)
+        lastSwipedProfile = target
+        lastSwipedPhotoUrls = targetAllPhotos
+        lastSwipeWasLike = isLike
+
+        // Optimistic UI: remove first
+        profiles.removeFirst()
+        primaryPhotoByUserId[target.id] = nil
+        allPhotosByUserId[target.id] = nil
+
+        UsageLimitService.shared.recordSwipe()
 
         do {
             try await swipeService.upsertSwipe(swiperId: myUserId, targetId: target.id, isLike: isLike)
 
-            if isLike, await matchService.createMatchWith(targetId: target.id) {
-                showMatchAlert = true
+            if isLike {
+                if let matchId = await matchIdIfExists(myUserId: myUserId, otherUserId: target.id) {
+                    matchedMatchId = matchId
+                    matchedUser = target
+                    matchedUserPhotoUrl = targetPhotoUrl
+                    showMatchAlert = true
+                    // Can't undo a match — clear undo state
+                    lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+
+                    // Ask for a review on first match only
+                    let alreadyAsked = UserDefaults.standard.bool(forKey: "review_requested")
+                    if !alreadyAsked {
+                        UserDefaults.standard.set(true, forKey: "review_requested")
+                        Task {
+                            try? await Task.sleep(nanoseconds: 2_500_000_000)
+                            if let scene = UIApplication.shared.connectedScenes
+                                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                                AppStore.requestReview(in: scene)
+                            }
+                        }
+                    }
+                }
             }
 
-            currentIndex += 1
+            if profiles.count < 5, hasMore {
+                await load(myUserId: myUserId)
+            }
         } catch {
+            // Rollback
+            profiles.insert(target, at: 0)
+            allPhotosByUserId[target.id] = targetAllPhotos
+            if let url = targetPhotoUrl { primaryPhotoByUserId[target.id] = url }
+            lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
             errorText = error.localizedDescription
         }
     }
 
-    var currentProfile: PublicProfile? {
-        guard currentIndex < profiles.count else { return nil }
-        return profiles[currentIndex]
-    }
+    func undoSwipe(myUserId: UUID) async {
+        guard let profile = lastSwipedProfile else { return }
 
-    private func fetchBlockedUserIds(myUserId: UUID) async throws -> Set<UUID> {
-        struct Row: Decodable { let blocker_id: UUID; let blocked_id: UUID }
-
-        let blockedByMe: [Row] = try await SupabaseClientProvider.shared.client
-            .from("blocks")
-            .select("blocker_id,blocked_id")
-            .eq("blocker_id", value: myUserId.uuidString)
-            .execute()
-            .value
-
-        let blockedMe: [Row] = try await SupabaseClientProvider.shared.client
-            .from("blocks")
-            .select("blocker_id,blocked_id")
-            .eq("blocked_id", value: myUserId.uuidString)
-            .execute()
-            .value
-
-        var out = Set<UUID>()
-        out.formUnion(blockedByMe.map { $0.blocked_id })
-        out.formUnion(blockedMe.map { $0.blocker_id })
-        return out
-    }
-
-    private func fetchMatchedUserIds(myUserId: UUID) async throws -> Set<UUID> {
-        struct Row: Decodable { let user_low: UUID; let user_high: UUID }
-
-        let rows: [Row] = try await SupabaseClientProvider.shared.client
-            .from("matches")
-            .select("user_low,user_high")
-            .or("user_low.eq.\(myUserId.uuidString),user_high.eq.\(myUserId.uuidString)")
-            .limit(200)
-            .execute()
-            .value
-
-        var out = Set<UUID>()
-        for r in rows {
-            if r.user_low == myUserId { out.insert(r.user_high) }
-            else if r.user_high == myUserId { out.insert(r.user_low) }
+        guard UsageLimitService.shared.canRewind() else {
+            showRewindLimitSheet = true
+            return
         }
-        return out
+
+        UsageLimitService.shared.recordRewind()
+
+        do {
+            try await swipeService.deleteSwipe(swiperId: myUserId, targetId: profile.id)
+        } catch {
+            errorText = error.localizedDescription
+            lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+            return
+        }
+
+        // Restore profile to front of stack
+        profiles.insert(profile, at: 0)
+        seenUserIds.remove(profile.id)
+        allPhotosByUserId[profile.id] = lastSwipedPhotoUrls
+        if let primary = lastSwipedPhotoUrls.first {
+            primaryPhotoByUserId[profile.id] = primary
+        }
+
+        lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+    }
+
+    func blockUser(myUserId: UUID, targetId: UUID) async {
+        profiles.removeAll { $0.id == targetId }
+        primaryPhotoByUserId[targetId] = nil
+        allPhotosByUserId[targetId] = nil
+        seenUserIds.insert(targetId)
+        do {
+            try await swipeService.block(blockerId: myUserId, blockedId: targetId)
+        } catch {
+            // silent — card already removed
+        }
+        if profiles.count < 5, hasMore {
+            await load(myUserId: myUserId)
+        }
+    }
+
+    // MARK: - Private helpers
+
+    private func matchIdIfExists(myUserId: UUID, otherUserId: UUID) async -> UUID? {
+        let low = min(myUserId, otherUserId)
+        let high = max(myUserId, otherUserId)
+
+        struct Row: Decodable { let id: UUID }
+
+        do {
+            let rows: [Row] = try await SupabaseClientProvider.shared.client
+                .from("matches")
+                .select("id")
+                .eq("user_low", value: low.uuidString)
+                .eq("user_high", value: high.uuidString)
+                .limit(1)
+                .execute()
+                .value
+            return rows.first?.id
+        } catch {
+            return nil
+        }
     }
 }

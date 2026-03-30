@@ -810,6 +810,7 @@ struct OnboardingView: View {
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Foto entfernen")
                             .padding(6)
 
                             // Upload state badge + retry
@@ -827,7 +828,7 @@ struct OnboardingView: View {
                                         Button {
                                             retryUpload(at: idx)
                                         } label: {
-                                            Text("Retry")
+                                            Text("Wiederholen")
                                                 .font(.caption)
                                                 .fontWeight(.semibold)
                                                 .padding(.vertical, 6)
@@ -1239,7 +1240,7 @@ private func softChipWrap<Content: View>(@ViewBuilder _ content: () -> Content) 
         if lookingFor.contains(key) {
             lookingFor.remove(key)
         } else {
-            lookingFor.insert(key)
+            lookingFor = [key] // single-select: replaces previous choice
         }
     }
 
@@ -2064,7 +2065,7 @@ private struct CompletionView: View {
             textOffset = 0; textOpacity = 1
         }
         // Spawn floating hearts
-        let screenW = UIScreen.main.bounds.width
+        let screenW = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.width ?? 375
         for i in 0..<18 {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.14) {
                 let h = FloatingHeart(
@@ -2185,19 +2186,28 @@ private struct BioAIDirectionSheet: View {
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .playful: return "Playful"
-            case .witty: return "Witty"
-            case .direct: return "Direct"
-            case .warm: return "Warm"
-            case .serious: return "Serious"
+            case .playful: return "Verspielt"
+            case .witty:   return "Witzig"
+            case .direct:  return "Direkt"
+            case .warm:    return "Herzlich"
+            case .serious: return "Ernst"
+            }
+        }
+        var subtitle: String {
+            switch self {
+            case .playful: return "locker & charmant"
+            case .witty:   return "humor & schlagfertig"
+            case .direct:  return "klar & auf den Punkt"
+            case .warm:    return "offen & nahbar"
+            case .serious: return "tiefgründig & fokussiert"
             }
         }
         var icon: String {
             switch self {
             case .playful: return "face.smiling"
-            case .witty: return "sparkles"
-            case .direct: return "bolt.fill"
-            case .warm: return "heart.fill"
+            case .witty:   return "sparkles"
+            case .direct:  return "bolt.fill"
+            case .warm:    return "heart.fill"
             case .serious: return "target"
             }
         }
@@ -2208,7 +2218,7 @@ private struct BioAIDirectionSheet: View {
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .short: return "Kurz (1–2 Zeilen)"
+            case .short:  return "Kurz (1–2 Zeilen)"
             case .medium: return "Mittel (3–5 Zeilen)"
             }
         }
@@ -2220,53 +2230,68 @@ private struct BioAIDirectionSheet: View {
     @State private var isGenerating: Bool = false
     @State private var suggestions: [String] = []
 
+    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 24) {
+
+                    // Header
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Bio-Vorschläge")
                             .font(.title2.weight(.bold))
-                        Text("Wähle Ton und Länge – der AI-Wingman schreibt für dich.")
+                        Text("Wähle Stil und Länge – der Wingman schreibt für dich.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
-                    // Tone selector
+                    // Tone grid
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Ton")
+                        Text("Stil")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(Tone.allCases) { t in
-                                    Button {
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                        tone = t
-                                    } label: {
-                                        HStack(spacing: 6) {
+                        LazyVGrid(columns: columns, spacing: 10) {
+                            ForEach(Tone.allCases) { t in
+                                Button {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    withAnimation(.easeInOut(duration: 0.15)) { tone = t }
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(tone == t ? Color.white.opacity(0.22) : brand.opacity(0.10))
+                                                .frame(width: 34, height: 34)
                                             Image(systemName: t.icon)
-                                                .font(.subheadline)
+                                                .font(.system(size: 15, weight: .semibold))
+                                                .foregroundStyle(tone == t ? .white : brand)
+                                        }
+                                        VStack(alignment: .leading, spacing: 1) {
                                             Text(t.label)
                                                 .font(.subheadline.weight(.semibold))
+                                            Text(t.subtitle)
+                                                .font(.caption2)
+                                                .opacity(0.8)
                                         }
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 9)
-                                        .foregroundStyle(tone == t ? .white : .primary)
-                                        .background(
-                                            tone == t
-                                                ? AnyShapeStyle(LinearGradient(colors: [brand, brand.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                                : AnyShapeStyle(Color(.systemGray6))
-                                        )
-                                        .clipShape(Capsule())
-                                        .overlay(Capsule().stroke(tone == t ? Color.clear : Color.gray.opacity(0.2), lineWidth: 1))
-                                        .shadow(color: tone == t ? brand.opacity(0.3) : .clear, radius: 6, y: 3)
+                                        Spacer()
                                     }
-                                    .buttonStyle(.plain)
-                                    .animation(.easeInOut(duration: 0.15), value: tone)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .foregroundStyle(tone == t ? .white : .primary)
+                                    .background(
+                                        tone == t
+                                            ? AnyShapeStyle(LinearGradient(
+                                                colors: [brand, brand.opacity(0.78)],
+                                                startPoint: .topLeading, endPoint: .bottomTrailing))
+                                            : AnyShapeStyle(Color(.systemGray6))
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .overlay(RoundedRectangle(cornerRadius: 14)
+                                        .stroke(tone == t ? Color.clear : Color.gray.opacity(0.15), lineWidth: 1))
+                                    .shadow(color: tone == t ? brand.opacity(0.28) : .clear, radius: 8, y: 4)
                                 }
+                                .buttonStyle(.plain)
                             }
-                            .padding(.horizontal, 1)
                         }
                     }
 
@@ -2283,48 +2308,65 @@ private struct BioAIDirectionSheet: View {
                         .pickerStyle(.segmented)
                     }
 
-                    PrimaryGradientButton(title: isGenerating ? "Wird erstellt…" : "Vorschläge generieren", brand: brand, isDisabled: isGenerating) {
+                    PrimaryGradientButton(
+                        title: isGenerating ? "Wird geschrieben…" : "Vorschläge generieren",
+                        brand: brand,
+                        isDisabled: isGenerating
+                    ) {
                         Task { await generateWithAI() }
                     }
 
+                    // Suggestions
                     if !suggestions.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Wähle einen Vorschlag:")
+                            Text("Wähle einen Vorschlag")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
-                            ForEach(suggestions, id: \.self) { option in
+                            ForEach(Array(suggestions.enumerated()), id: \.offset) { idx, option in
                                 Button {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                     onSelect(option)
                                     dismiss()
                                 } label: {
-                                    VStack(alignment: .leading, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 10) {
                                         Text(option)
                                             .font(.subheadline)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .multilineTextAlignment(.leading)
+                                            .foregroundStyle(.primary)
                                         HStack {
                                             Spacer()
-                                            Label("Übernehmen", systemImage: "checkmark")
-                                                .font(.caption.weight(.semibold))
-                                                .foregroundStyle(brand)
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "checkmark")
+                                                    .font(.caption.weight(.bold))
+                                                Text("Übernehmen")
+                                                    .font(.caption.weight(.semibold))
+                                            }
+                                            .foregroundStyle(brand)
                                         }
                                     }
                                     .padding(16)
                                     .background(Color(.systemBackground))
-                                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.gray.opacity(0.18), lineWidth: 1))
-                                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                                    .shadow(color: .black.opacity(0.03), radius: 8, y: 3)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.gray.opacity(0.15), lineWidth: 1))
+                                    .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
                                 }
                                 .buttonStyle(.plain)
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
                         }
+                        .animation(.easeOut(duration: 0.22), value: suggestions.count)
                     }
                 }
                 .padding(20)
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) { Button("Schließen") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Schließen") { dismiss() }.tint(brand)
+                }
             }
         }
         .tint(brand)

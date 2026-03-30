@@ -1,16 +1,75 @@
 import SwiftUI
+import CryptoKit
 
-// MARK: - In-memory image cache
+// MARK: - In-memory and Disk Image Cache
 
-private final class ImageCache {
+final class ImageCache {
     static let shared = ImageCache()
-    private let cache = NSCache<NSURL, UIImage>()
+    private let memCache = NSCache<NSString, UIImage>()
+    private let fileManager = FileManager.default
+    private let cacheDir: URL
+
     private init() {
-        cache.countLimit = 200
-        cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
+        memCache.countLimit = 200
+        memCache.totalCostLimit = 100 * 1024 * 1024 // 100 MB
+        
+        // Setup disk cache
+        let urls = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
+        cacheDir = urls[0].appendingPathComponent("WingmanImageCache")
+        if !fileManager.fileExists(atPath: cacheDir.path) {
+            try? fileManager.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        }
     }
-    func get(_ url: URL) -> UIImage? { cache.object(forKey: url as NSURL) }
-    func set(_ image: UIImage, for url: URL) { cache.setObject(image, forKey: url as NSURL) }
+    
+    private func cacheKey(for url: URL) -> String {
+        let hash = Insecure.MD5.hash(data: url.absoluteString.data(using: .utf8) ?? Data())
+        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+
+    func get(_ url: URL) -> UIImage? { 
+        let key = cacheKey(for: url)
+        
+        // 1. Memory check
+        if let memImpl = memCache.object(forKey: key as NSString) {
+            return memImpl
+        }
+        
+        // 2. Disk check
+        let fileUrl = cacheDir.appendingPathComponent(key)
+        if let data = try? Data(contentsOf: fileUrl), let img = UIImage(data: data) {
+            memCache.setObject(img, forKey: key as NSString)
+            return img
+        }
+        
+        return nil
+    }
+    
+    func set(_ image: UIImage, data: Data, for url: URL) { 
+        let key = cacheKey(for: url)
+        memCache.setObject(image, forKey: key as NSString)
+        
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            let fileUrl = self.cacheDir.appendingPathComponent(key)
+            try? data.write(to: fileUrl)
+        }
+    }
+
+    /// Preloads and caches an image if not already cached.
+    func preload(_ url: URL) async {
+        if get(url) != nil { return }
+        
+        let loadedImg: UIImage? = await Task.detached(priority: .background) {
+            guard let (data, response) = try? await URLSession.shared.data(from: url),
+                  let code = (response as? HTTPURLResponse)?.statusCode, code >= 200 && code < 300,
+                  let loaded = UIImage(data: data) else {
+                return nil
+            }
+            self.set(loaded, data: data, for: url)
+            return loaded
+        }.value
+        _ = loadedImg
+    }
 }
 
 // MARK: - Phase
@@ -34,12 +93,14 @@ struct CachedAsyncImage<Content: View>: View {
         ZStack {
             if let uiImage {
                 content(.success(Image(uiImage: uiImage)))
+                    .transition(.opacity)
             } else if failed {
                 content(.failure)
             } else {
                 content(.empty)
             }
         }
+        .animation(.easeIn(duration: 0.15), value: uiImage != nil)
         .task(id: url) { await load() }
     }
 
@@ -48,12 +109,28 @@ struct CachedAsyncImage<Content: View>: View {
         uiImage = nil
         failed = false
         guard let url else { failed = true; return }
-        if let cached = ImageCache.shared.get(url) { uiImage = cached; return }
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
-              let loaded = UIImage(data: data) else {
-            failed = true; return
+        
+        // Quick local check without await if possible
+        if let cached = ImageCache.shared.get(url) { 
+            uiImage = cached
+            return 
         }
-        ImageCache.shared.set(loaded, for: url)
-        uiImage = loaded
+        
+        // Detach download so it doesn't block main queue priority too much
+        let loadedImg: UIImage? = await Task.detached(priority: .userInitiated) {
+            guard let (data, response) = try? await URLSession.shared.data(from: url),
+                  let code = (response as? HTTPURLResponse)?.statusCode, code >= 200 && code < 300,
+                  let loaded = UIImage(data: data) else {
+                return nil
+            }
+            ImageCache.shared.set(loaded, data: data, for: url)
+            return loaded
+        }.value
+        
+        if let img = loadedImg {
+            uiImage = img
+        } else {
+            failed = true
+        }
     }
 }

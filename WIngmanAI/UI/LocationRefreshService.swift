@@ -1,15 +1,17 @@
 import CoreLocation
 import Foundation
+import Supabase
+import PostgREST
 
 @MainActor
 final class LocationRefreshService {
     static let shared = LocationRefreshService()
+    private let manager = CLLocationManager()
     private init() {}
 
     func refreshIfAuthorized(userId: UUID) async {
         guard #available(iOS 17.0, *) else { return }
-        let mgr = CLLocationManager()
-        let status = mgr.authorizationStatus
+        let status = manager.authorizationStatus
         guard status == .authorizedWhenInUse || status == .authorizedAlways else { return }
 
         do {
