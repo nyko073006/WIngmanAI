@@ -1,0 +1,33 @@
+name: Daily Edge Function Health Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 08:00 Berlin time
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Edge Functions
+        run: |
+          BASE="https://axkxzozfwecdyulnvwmx.supabase.co/functions/v1"
+          FUNCTIONS="ai-bio ai-wingman ai-hooks ai-prompts ai-debrief send-push send-push-debrief"
+          ERRORS=0
+
+          for fn in $FUNCTIONS; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/$fn")
+            if [ "$STATUS" = "401" ]; then
+              echo "✅ $fn → $STATUS (healthy)"
+            else
+              echo "❌ $fn → $STATUS (ERROR)"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS function(s) returned unexpected status codes"
+            exit 1
+          else
+            echo "All functions healthy."
+          fi

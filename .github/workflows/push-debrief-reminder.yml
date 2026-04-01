@@ -1,0 +1,29 @@
+name: Push Debrief Reminder
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 10:00 Berlin time
+  workflow_dispatch:
+
+jobs:
+  trigger-debrief-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call send-push-debrief Edge Function
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://axkxzozfwecdyulnvwmx.supabase.co/functions/v1/send-push-debrief" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Debrief push failed with status $HTTP_STATUS"
+            exit 1
+          fi
