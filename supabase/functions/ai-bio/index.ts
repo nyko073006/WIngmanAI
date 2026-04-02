@@ -113,14 +113,29 @@ Deno.serve(async (req) => {
     const raw = r.choices[0].message.content ?? "{}";
     const parsed = JSON.parse(raw);
 
-    // Normalise to { bios: string[] } regardless of what GPT returned
+    // Extract a plain string from whatever GPT hands back
+    const toStr = (v: unknown): string => {
+      if (typeof v === "string") return v;
+      if (v && typeof v === "object") {
+        const obj = v as Record<string, unknown>;
+        // Common wrapper keys GPT uses
+        for (const k of ["text", "bio", "content", "value", "bio_1", "bio_2", "bio_3"]) {
+          if (typeof obj[k] === "string") return obj[k] as string;
+        }
+        // First string value in the object
+        const first = Object.values(obj).find((x) => typeof x === "string");
+        if (first) return first as string;
+      }
+      return JSON.stringify(v);
+    };
+
+    // Normalise to { bios: string[] }
     let bios: string[] = [];
     if (Array.isArray(parsed.bios)) {
-      bios = parsed.bios.map(String);
+      bios = parsed.bios.map(toStr);
     } else {
-      // GPT sometimes returns { bio_1, bio_2, bio_3 } or { bio: [...] } etc.
-      const values = Object.values(parsed).filter((v) => typeof v === "string");
-      bios = values.length > 0 ? values as string[] : [raw];
+      // GPT returned { bio_1: "...", bio_2: "...", bio_3: "..." } flat
+      bios = Object.values(parsed).map(toStr).filter((s) => s.length > 5);
     }
 
     return new Response(JSON.stringify({ bios }), {
