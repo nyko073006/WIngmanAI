@@ -3,6 +3,7 @@ import Foundation
 import Supabase
 import Auth
 import AuthenticationServices
+import GoogleSignIn
 import UIKit
 
 
@@ -150,48 +151,33 @@ final class AppAuthService: ObservableObject {
 
     // MARK: - Google Sign In
 
-    private var webAuthSession: ASWebAuthenticationSession?
-    private let windowContext = GoogleAuthWindowContext()
-
     func signInWithGoogle() async {
         isBusy = true
         error = nil
         defer { isBusy = false }
 
-        let base = SupabaseClientProvider.shared.supabaseURL
-        var comps = URLComponents(url: base.appendingPathComponent("auth/v1/authorize"),
-                                  resolvingAgainstBaseURL: false)!
-        comps.queryItems = [
-            .init(name: "provider",     value: "google"),
-            .init(name: "redirect_to",  value: "wingmanai://auth-callback"),
-            .init(name: "scopes",       value: "email profile"),
-        ]
-        guard let oauthURL = comps.url else { return }
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+            self.error = AppError(title: "Google Sign In fehlgeschlagen", message: "Kein Root-View gefunden.")
+            return
+        }
 
         do {
-            let callbackURL: URL = try await withCheckedThrowingContinuation { cont in
-                let ws = ASWebAuthenticationSession(
-                    url: oauthURL,
-                    callbackURLScheme: "wingmanai"
-                ) { url, err in
-                    if let err { cont.resume(throwing: err) }
-                    else if let url { cont.resume(returning: url) }
-                    else { cont.resume(throwing: URLError(.badServerResponse)) }
-                }
-                ws.prefersEphemeralWebBrowserSession = false
-                ws.presentationContextProvider = windowContext
-                webAuthSession = ws
-                ws.start()
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            guard let idToken = result.user.idToken?.tokenString else {
+                self.error = AppError(title: "Google Sign In fehlgeschlagen", message: "Kein ID Token erhalten.")
+                return
             }
-            webAuthSession = nil
-            let session = try await client.auth.session(from: callbackURL)
+            let accessToken = result.user.accessToken.tokenString
+            let session = try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .google, idToken: idToken, accessToken: accessToken)
+            )
             setSession(session)
         } catch {
-            webAuthSession = nil
             let nsErr = error as NSError
-            guard nsErr.code != ASWebAuthenticationSessionError.canceledLogin.rawValue else { return }
-            self.error = AppError(title: "Google Sign In fehlgeschlagen",
-                                  message: error.localizedDescription)
+            // GIDSignInErrorCodeCanceled = -5
+            guard nsErr.code != -5 else { return }
+            self.error = AppError(title: "Google Sign In fehlgeschlagen", message: error.localizedDescription)
         }
     }
 
@@ -264,14 +250,4 @@ final class AppAuthService: ObservableObject {
     }
 }
 
-// MARK: - ASWebAuthenticationSession presentation context
-
-private final class GoogleAuthWindowContext: NSObject, ASWebAuthenticationPresentationContextProviding {
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow } ?? UIWindow()
-    }
-}
 

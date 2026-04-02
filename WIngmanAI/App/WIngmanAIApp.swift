@@ -10,6 +10,7 @@ import Supabase
 import UserNotifications
 import UIKit
 import CoreLocation
+import GoogleSignIn
 
 @main
 struct WingmanAIApp: App {
@@ -90,7 +91,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+
+        // Google Sign In — client ID aus Info.plist (GOOGLE_CLIENT_ID key)
+        if let clientID = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_ID") as? String {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
+
         return true
+    }
+
+    // Google Sign In OAuth callback
+    func application(_ app: UIApplication, open url: URL,
+                     options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return GIDSignIn.sharedInstance.handle(url)
     }
 
     // Called when user taps a notification while app is in background / killed
