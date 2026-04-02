@@ -3,6 +3,7 @@ import Foundation
 import Supabase
 import Auth
 import AuthenticationServices
+import UIKit
 
 
 @MainActor
@@ -147,6 +148,53 @@ final class AppAuthService: ObservableObject {
         }
     }
 
+    // MARK: - Google Sign In
+
+    private var webAuthSession: ASWebAuthenticationSession?
+    private let windowContext = GoogleAuthWindowContext()
+
+    func signInWithGoogle() async {
+        isBusy = true
+        error = nil
+        defer { isBusy = false }
+
+        let base = SupabaseClientProvider.shared.supabaseURL
+        var comps = URLComponents(url: base.appendingPathComponent("auth/v1/authorize"),
+                                  resolvingAgainstBaseURL: false)!
+        comps.queryItems = [
+            .init(name: "provider",     value: "google"),
+            .init(name: "redirect_to",  value: "wingmanai://auth-callback"),
+            .init(name: "scopes",       value: "email profile"),
+        ]
+        guard let oauthURL = comps.url else { return }
+
+        do {
+            let callbackURL: URL = try await withCheckedThrowingContinuation { cont in
+                let ws = ASWebAuthenticationSession(
+                    url: oauthURL,
+                    callbackURLScheme: "wingmanai"
+                ) { url, err in
+                    if let err { cont.resume(throwing: err) }
+                    else if let url { cont.resume(returning: url) }
+                    else { cont.resume(throwing: URLError(.badServerResponse)) }
+                }
+                ws.prefersEphemeralWebBrowserSession = false
+                ws.presentationContextProvider = windowContext
+                webAuthSession = ws
+                ws.start()
+            }
+            webAuthSession = nil
+            let session = try await client.auth.session(from: callbackURL)
+            setSession(session)
+        } catch {
+            webAuthSession = nil
+            let nsErr = error as NSError
+            guard nsErr.code != ASWebAuthenticationSessionError.canceledLogin.rawValue else { return }
+            self.error = AppError(title: "Google Sign In fehlgeschlagen",
+                                  message: error.localizedDescription)
+        }
+    }
+
     // MARK: - Apple Sign In
 
     func handleAppleResult(_ result: Result<ASAuthorization, Error>) async {
@@ -213,6 +261,17 @@ final class AppAuthService: ObservableObject {
         } catch {
             self.error = AppError(title: "Account löschen fehlgeschlagen", message: error.localizedDescription)
         }
+    }
+}
+
+// MARK: - ASWebAuthenticationSession presentation context
+
+private final class GoogleAuthWindowContext: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow } ?? UIWindow()
     }
 }
 

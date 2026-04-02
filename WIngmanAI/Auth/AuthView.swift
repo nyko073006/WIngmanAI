@@ -164,6 +164,15 @@ struct AuthView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.horizontal, 24)
 
+                    // Google Sign In
+                    Button {
+                        Task { await auth.signInWithGoogle() }
+                    } label: {
+                        GoogleSignInLabel()
+                            .frame(height: 52)
+                    }
+                    .padding(.horizontal, 24)
+
                     if let err = auth.error {
                         VStack(spacing: 4) {
                             Text(err.title).font(.subheadline).fontWeight(.semibold)
@@ -585,6 +594,15 @@ struct WelcomeView: View {
                     .frame(height: 52)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
 
+                    // Google Sign In
+                    Button {
+                        Task { await auth.signInWithGoogle() }
+                    } label: {
+                        GoogleSignInLabel()
+                            .frame(height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                    }
+
                     HStack(spacing: 10) {
                         Rectangle().fill(Color(.systemGray4)).frame(height: 0.5)
                         Text("oder per E-Mail").font(.caption).foregroundStyle(.secondary)
@@ -645,5 +663,40 @@ struct WelcomeView: View {
             Spacer()
         }
         .padding(16)
+    }
+}
+
+// MARK: - Google Sign In Button Label
+
+struct GoogleSignInLabel: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Google "G" logo drawn with SwiftUI
+            ZStack {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 22, height: 22)
+                Text("G")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color(red: 0.26, green: 0.52, blue: 0.96))
+            }
+            Text("Mit Google fortfahren")
+                .font(.system(.body, design: .rounded).weight(.semibold))
+                .foregroundStyle(colorScheme == .dark ? .white : Color(.label))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(
+            colorScheme == .dark
+                ? Color(.systemGray5)
+                : Color.white
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
     }
 }
