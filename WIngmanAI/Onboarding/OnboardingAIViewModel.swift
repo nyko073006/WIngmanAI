@@ -72,15 +72,20 @@ final class OnboardingAIViewModel: ObservableObject {
         do {
             let res = try await AIService.shared.generateHooks(input: input)
             hookOptions = sanitize(res.hooks)
-            vibeOptions = sanitize(res.firstDateVibes)
+            let newVibes = sanitize(res.firstDateVibes)
+            // Merge: keep previously selected vibes at top, add new ones after
+            let kept = selectedVibes
+            vibeOptions = Array(kept) + newVibes.filter { !kept.contains($0) }
             selectedHooks = []
-            selectedVibes = []
+            // selectedVibes intentionally NOT reset — keep user's picks
         } catch {
             hooksError = friendly(error)
             hookOptions = fallbackHooks(context: input)
-            vibeOptions = fallbackVibes(context: input)
+            let fallback = fallbackVibes(context: input)
+            let kept = selectedVibes
+            vibeOptions = Array(kept) + fallback.filter { !kept.contains($0) }
             selectedHooks = []
-            selectedVibes = []
+            // selectedVibes intentionally NOT reset
         }
     }
 
