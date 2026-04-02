@@ -1,1 +1,20 @@
+# Supabase secrets
 WIngmanAI/Supabase.plist
+WIngmanAI/Info.plist
+
+# Xcode user data
+*.xcuserstate
+xcuserdata/
+*.xcuserdatad/
+
+# Xcode duplicates (files Xcode creates as "name 2.swift")
+*\ 2.swift
+
+# IDE
+.vscode/
+
+# Claude Code internal
+.claude/
+
+# macOS
+.DS_Store
