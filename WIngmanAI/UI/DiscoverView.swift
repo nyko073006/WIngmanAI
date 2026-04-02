@@ -325,6 +325,7 @@ struct DiscoverView: View {
                     cardOffset = .zero
                     swipeLabel = nil
                     didHapticThreshold = false
+                    preloadUpcomingCards()
                 }
 
                 // Undo button (only after a swipe, disappears after use or on match)
@@ -510,6 +511,22 @@ struct DiscoverView: View {
     private func reload() async {
         guard let myId = auth.session?.user.id else { return }
         await vm.load(myUserId: myId)
+        preloadUpcomingCards()
+    }
+
+    private func preloadUpcomingCards() {
+        let upcoming = vm.profiles.dropFirst()
+        for prof in upcoming.prefix(3) {
+            let urls = (vm.allPhotosByUserId[prof.id] ?? [])
+            let toPreload = urls.isEmpty ? (vm.primaryPhotoByUserId[prof.id].map { [$0] } ?? []) : urls
+            for urlString in toPreload.prefix(2) {
+                if let url = URL(string: urlString) {
+                    Task.detached(priority: .background) {
+                        await ImageCache.shared.preload(url)
+                    }
+                }
+            }
+        }
     }
 
     private func swipe(isLike: Bool) async {
@@ -1038,14 +1055,18 @@ private struct MatchOverlayView: View {
                     }
 
                     // Gradient title
-                    Text("Du hast ein Match! 🎉")
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(colors: [.white, brandColorAlt.mix(with: .white, by: 0.3)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing)
-                        )
-                        .multilineTextAlignment(.center)
-                        .shadow(color: brandColor.opacity(0.45), radius: 10, y: 3)
+                    if #available(iOS 18.0, *) {
+                        Text("Du hast ein Match! 🎉")
+                            .font(.system(size: 36, weight: .heavy, design: .rounded))
+                            .foregroundStyle(
+                                LinearGradient(colors: [.white, brandColorAlt.mix(with: .white, by: 0.3)],
+                                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .multilineTextAlignment(.center)
+                            .shadow(color: brandColor.opacity(0.45), radius: 10, y: 3)
+                    } else {
+                        // Fallback on earlier versions
+                    }
 
                     Text("Du und \(name) habt euch geliked ✨")
                         .font(.subheadline.weight(.medium))

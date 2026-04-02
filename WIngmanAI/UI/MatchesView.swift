@@ -42,6 +42,10 @@ struct MatchesView: View {
     @State private var blockAlertMatch: MatchesViewModel.MatchItem? = nil
     @State private var reportAlertMatch: MatchesViewModel.MatchItem? = nil
     @State private var unmatchAlertMatch: MatchesViewModel.MatchItem? = nil
+    @State private var debriefMatch: MatchesViewModel.MatchItem? = nil
+    @State private var optionsMatch: MatchesViewModel.MatchItem? = nil
+    @State private var closureItem: MatchesViewModel.MatchItem? = nil
+    @State private var closedMatchIds: Set<String> = []
     
     @AppStorage("matches_view_style") private var viewStyle: String = "list"
 
@@ -100,18 +104,21 @@ struct MatchesView: View {
                         Image("colored-logo-ohne-schrift")
                             .resizable()
                             .scaledToFit()
-                            .frame(height: 32)
+                            .frame(height: 42)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Picker("Ansicht", selection: $viewStyle) {
-                            Image(systemName: "list.bullet").tag("list")
-                            Image(systemName: "square.grid.2x2").tag("grid")
+                        Button {
+                            viewStyle = (viewStyle == "list") ? "grid" : "list"
+                        } label: {
+                            Image(systemName: viewStyle == "list" ? "square.grid.2x2" : "list.bullet")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(.primary)
+                                .frame(width: 36, height: 36)
                         }
-                        .pickerStyle(.segmented)
-                        .frame(width: 90)
                     }
                 }
                 .task {
+                    closedMatchIds = Self.loadClosedMatchIds(myId: myId)
                     await vm.load(myId: myId)
                     syncRealtimeSubscriptions()
                     startNewMatchRealtime()
@@ -129,6 +136,55 @@ struct MatchesView: View {
                 }
                 .sheet(item: $profileSheetUser) { wrapper in
                     OtherUserProfileSheet(userId: wrapper.id)
+                }
+                .sheet(item: $debriefMatch) { item in
+                    DateDebriefView(matchName: item.name, matchId: item.id)
+                        .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
+                }
+                .sheet(item: $closureItem) { item in
+                    ClosureFlowSheet(
+                        matchId: item.id,
+                        matchName: item.name,
+                        daysSilent: daysSilent(item),
+                        onSendMessage: { msg in sendClosureMessage(item: item, text: msg) },
+                        onEndSilently: { endMatchSilently(item: item) },
+                        onKeepGoing: { vm.markSeen(matchId: item.id); onOpenChat(item) }
+                    )
+                }
+                .confirmationDialog(
+                    optionsMatch?.name ?? "",
+                    isPresented: Binding(get: { optionsMatch != nil }, set: { if !$0 { optionsMatch = nil } }),
+                    titleVisibility: .visible
+                ) {
+                    if let item = optionsMatch {
+                        Button("Profil anzeigen") {
+                            profileSheetUser = IdentifiableUUID(id: item.otherUserId)
+                            optionsMatch = nil
+                        }
+                        Button("Date Debrief 💬") {
+                            debriefMatch = item
+                            optionsMatch = nil
+                        }
+                        Button("Ehrlich abschließen 🤝") {
+                            closureItem = item
+                            optionsMatch = nil
+                        }
+                        Divider()
+                        Button("Entmatchen", role: .destructive) {
+                            unmatchAlertMatch = item
+                            optionsMatch = nil
+                        }
+                        Button("Blockieren", role: .destructive) {
+                            blockAlertMatch = item
+                            optionsMatch = nil
+                        }
+                        Button("Melden", role: .destructive) {
+                            reportAlertMatch = item
+                            optionsMatch = nil
+                        }
+                        Button("Abbrechen", role: .cancel) { optionsMatch = nil }
+                    }
                 }
                 .alert("Blockieren?", isPresented: Binding(
                     get: { blockAlertMatch != nil },
@@ -282,14 +338,28 @@ struct MatchesView: View {
                             
                             LazyVStack(spacing: 0) {
                                 ForEach(Array(activeMatches.enumerated()), id: \.element.id) { index, item in
-                                    Button {
-                                        vm.markSeen(matchId: item.id)
-                                        onOpenChat(item)
-                                    } label: {
-                                        MatchRow(item: item) {
-                                            profileSheetUser = IdentifiableUUID(id: item.otherUserId)
+                                    HStack(spacing: 0) {
+                                        Button {
+                                            vm.markSeen(matchId: item.id)
+                                            onOpenChat(item)
+                                        } label: {
+                                            MatchRow(
+                                                item: item,
+                                                daysInactive: isInactive(item) ? daysSilent(item) : nil,
+                                                onProfileTap: { profileSheetUser = IdentifiableUUID(id: item.otherUserId) },
+                                                onClosureTap: { closureItem = item }
+                                            )
+                                            .padding(.leading, 16)
                                         }
-                                        .padding(.horizontal, 16)
+                                        Button {
+                                            optionsMatch = item
+                                        } label: {
+                                            Image(systemName: "ellipsis")
+                                                .font(.system(size: 16, weight: .medium))
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 44, height: 44)
+                                        }
+                                        .padding(.trailing, 8)
                                     }
                                     .buttonStyle(.plain)
                                     .contextMenu {
@@ -297,6 +367,16 @@ struct MatchesView: View {
                                             profileSheetUser = IdentifiableUUID(id: item.otherUserId)
                                         } label: {
                                             Label("Profil anzeigen", systemImage: "person.crop.circle")
+                                        }
+                                        Button {
+                                            debriefMatch = item
+                                        } label: {
+                                            Label("Date Debrief", systemImage: "bubble.left.and.text.bubble.right")
+                                        }
+                                        Button {
+                                            closureItem = item
+                                        } label: {
+                                            Label("Ehrlich abschließen", systemImage: "checkmark.circle")
                                         }
                                         Divider()
                                         Button(role: .destructive) {
@@ -380,6 +460,63 @@ struct MatchesView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Closure Flow helpers
+
+    private func isInactive(_ item: MatchesViewModel.MatchItem) -> Bool {
+        guard item.lastMessageText != nil else { return false }
+        guard !closedMatchIds.contains(item.id.uuidString) else { return false }
+        return daysSilent(item) >= 7
+    }
+
+    private func daysSilent(_ item: MatchesViewModel.MatchItem) -> Int {
+        guard let lastAt = item.lastMessageAt else { return 0 }
+        return Calendar.current.dateComponents([.day], from: lastAt, to: Date()).day ?? 0
+    }
+
+    private func markClosed(matchId: UUID) {
+        closedMatchIds.insert(matchId.uuidString)
+        let key = "closure_sent_\(myId.uuidString)"
+        UserDefaults.standard.set(Array(closedMatchIds), forKey: key)
+    }
+
+    private static func loadClosedMatchIds(myId: UUID) -> Set<String> {
+        let key = "closure_sent_\(myId.uuidString)"
+        let arr = UserDefaults.standard.stringArray(forKey: key) ?? []
+        return Set(arr)
+    }
+
+    private func sendClosureMessage(item: MatchesViewModel.MatchItem, text: String) {
+        markClosed(matchId: item.id)
+        Task {
+            do {
+                struct MsgInsert: Encodable {
+                    let match_id: UUID
+                    let sender_id: UUID
+                    let text: String
+                }
+                try await client
+                    .from("messages")
+                    .insert(MsgInsert(match_id: item.id, sender_id: myId, text: text))
+                    .execute()
+                // Short delay so the message is sent, then end match
+                try await Task.sleep(nanoseconds: 800_000_000)
+                try await client.from("matches").delete().eq("id", value: item.id.uuidString).execute()
+                await MainActor.run { vm.items.removeAll { $0.id == item.id } }
+            } catch {
+                // If match deletion fails, just keep it closed locally
+            }
+        }
+    }
+
+    private func endMatchSilently(item: MatchesViewModel.MatchItem) {
+        markClosed(matchId: item.id)
+        let matchId = item.id
+        vm.items.removeAll { $0.id == matchId }
+        Task {
+            try? await client.from("matches").delete().eq("id", value: matchId.uuidString).execute()
         }
     }
 
@@ -549,7 +686,9 @@ private let matchBrandAlt = Color(.sRGB, red: 0xF5/255, green: 0x7C/255, blue: 0
 
 private struct MatchRow: View {
     let item: MatchesViewModel.MatchItem
+    var daysInactive: Int? = nil
     var onProfileTap: (() -> Void)? = nil
+    var onClosureTap: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 14) {
@@ -592,6 +731,24 @@ private struct MatchRow: View {
                         .foregroundStyle(item.unreadCount > 0 ? .primary : .secondary)
                         .lineLimit(1)
                         .fontWeight(item.unreadCount > 0 ? .medium : .regular)
+                }
+
+                if let days = daysInactive {
+                    Button {
+                        onClosureTap?()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.badge.exclamationmark")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("\(days) Tage still · Abschließen?")
+                                .font(.caption2.weight(.medium))
+                        }
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.orange.opacity(0.1), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 

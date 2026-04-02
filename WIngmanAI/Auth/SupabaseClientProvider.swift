@@ -13,39 +13,38 @@ final class SupabaseClientProvider {
     let anonKey: String
     let client: SupabaseClient
 
+    private static let fallbackURL = URL(string: "https://invalid.supabase.co")!
+    private static let fallbackKey = "invalid-key"
+
     private init() {
         // Read + sanitize SUPABASE_URL
         let rawURL = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // If someone pasted without scheme, fix it.
         let normalizedURLString: String =
             rawURL.hasPrefix("https://") || rawURL.hasPrefix("http://")
             ? rawURL
             : "https://\(rawURL)"
 
-        guard
-            !rawURL.isEmpty,
-            let url = URL(string: normalizedURLString),
-            url.host != nil
-        else {
-            fatalError("Missing/invalid SUPABASE_URL in Info.plist")
+        if rawURL.isEmpty || URL(string: normalizedURLString)?.host == nil {
+            assertionFailure("Missing or invalid SUPABASE_URL in Info.plist")
+            self.supabaseURL = Self.fallbackURL
+            self.anonKey = Self.fallbackKey
+            self.client = SupabaseClient(supabaseURL: Self.fallbackURL, supabaseKey: Self.fallbackKey)
+            return
         }
+        self.supabaseURL = URL(string: normalizedURLString)!
 
-        self.supabaseURL = url
+        let anonKeyRaw = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard
-            let anonKeyRaw = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String
-        else {
-            fatalError("Missing SUPABASE_ANON_KEY in Info.plist")
+        if anonKeyRaw.isEmpty {
+            assertionFailure("Missing SUPABASE_ANON_KEY in Info.plist")
+            self.anonKey = Self.fallbackKey
+            self.client = SupabaseClient(supabaseURL: self.supabaseURL, supabaseKey: Self.fallbackKey)
+            return
         }
-
-        let anonKey = anonKeyRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !anonKey.isEmpty else {
-            fatalError("Missing SUPABASE_ANON_KEY in Info.plist")
-        }
-
-        self.anonKey = anonKey
+        self.anonKey = anonKeyRaw
 
         self.client = SupabaseClient(
             supabaseURL: self.supabaseURL,

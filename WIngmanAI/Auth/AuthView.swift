@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct AuthView: View {
     @EnvironmentObject var auth: AppAuthService
@@ -11,6 +12,7 @@ struct AuthView: View {
     @State private var showConsent = false
     @State private var showResetSheet = false
 
+    @Environment(\.colorScheme) private var colorScheme
     private enum Field: Hashable { case email, password }
     @FocusState private var focusedField: Field?
 
@@ -138,6 +140,29 @@ struct AuthView: View {
                         .font(.subheadline)
                         .foregroundStyle(brand.opacity(0.8))
                     }
+
+                    // Divider
+                    HStack(spacing: 10) {
+                        Rectangle().fill(Color(.systemGray4)).frame(height: 0.5)
+                        Text("oder").font(.caption).foregroundStyle(.secondary)
+                        Rectangle().fill(Color(.systemGray4)).frame(height: 0.5)
+                    }
+                    .padding(.horizontal, 24)
+
+                    // Apple Sign In
+                    SignInWithAppleButton(
+                        isSignUp ? .signUp : .signIn,
+                        onRequest: { request in
+                            request.requestedScopes = [.fullName, .email]
+                        },
+                        onCompletion: { result in
+                            Task { await auth.handleAppleResult(result) }
+                        }
+                    )
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal, 24)
 
                     if let err = auth.error {
                         VStack(spacing: 4) {
@@ -487,7 +512,9 @@ private struct ConsentSheet: View {
 // MARK: - Welcome / Landing Screen
 
 struct WelcomeView: View {
+    @EnvironmentObject var auth: AppAuthService
     @State private var authDest: AuthDest? = nil
+    @Environment(\.colorScheme) private var colorScheme
 
     private let brand    = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
     private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
@@ -544,11 +571,31 @@ struct WelcomeView: View {
 
                 // CTAs
                 VStack(spacing: 12) {
+                    // Apple Sign In — must appear before other options (Apple guideline)
+                    SignInWithAppleButton(
+                        .signUp,
+                        onRequest: { request in
+                            request.requestedScopes = [.fullName, .email]
+                        },
+                        onCompletion: { result in
+                            Task { await auth.handleAppleResult(result) }
+                        }
+                    )
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+
+                    HStack(spacing: 10) {
+                        Rectangle().fill(Color(.systemGray4)).frame(height: 0.5)
+                        Text("oder per E-Mail").font(.caption).foregroundStyle(.secondary)
+                        Rectangle().fill(Color(.systemGray4)).frame(height: 0.5)
+                    }
+
                     Button {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         authDest = .signUp
                     } label: {
-                        Text("Kostenlos starten")
+                        Text("Mit E-Mail registrieren")
                             .font(.system(.body, design: .rounded).weight(.bold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)

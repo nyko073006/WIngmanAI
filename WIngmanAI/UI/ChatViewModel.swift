@@ -34,11 +34,16 @@ final class ChatViewModel: ObservableObject {
 
     @Published var isSending: Bool = false
     @Published var isUploadingImage: Bool = false
+    @Published var isOffline: Bool = false
     @Published var errorText: String? = nil
     @Published var messages: [Message] = []
     @Published var otherLastSeenAt: Date? = nil
-    @Published var wingSuggestions: [String] = []
+    @Published var wingmanResponse: WingmanRouterResponse? = nil
     @Published var isLoadingWingSuggestions: Bool = false
+
+    var wingSuggestions: [String] {
+        wingmanResponse?.variants?.map { $0.text } ?? []
+    }
 
     private var client: SupabaseClient { SupabaseClientProvider.shared.client }
 
@@ -82,9 +87,11 @@ final class ChatViewModel: ObservableObject {
         let monitor = NWPathMonitor()
         networkMonitor = monitor
         monitor.pathUpdateHandler = { [weak self] path in
-            guard path.status == .satisfied else { return }
             Task { @MainActor [weak self] in
-                self?.retryOfflineQueue()
+                self?.isOffline = path.status != .satisfied
+                if path.status == .satisfied {
+                    self?.retryOfflineQueue()
+                }
             }
         }
         monitor.start(queue: DispatchQueue(label: "nw.monitor"))
@@ -426,10 +433,10 @@ final class ChatViewModel: ObservableObject {
         guard !isLoadingWingSuggestions else { return }
         guard let myId = myUserId else { return }
         isLoadingWingSuggestions = true
-        wingSuggestions = []
+        wingmanResponse = nil
         defer { isLoadingWingSuggestions = false }
 
-        // Derive the other user's ID from the match record
+        // Derive other user ID
         struct MatchRow: Decodable { let user_low: UUID; let user_high: UUID }
         let otherUserId: UUID
         do {
@@ -446,36 +453,42 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
-        // Fetch their profile (optional enrichment; failure is non-fatal)
-        struct ProfileRow: Decodable { let bio: String?; let interests: [String]? }
-        var theirBio: String? = nil
-        var theirInterests: [String] = []
+        // Fetch match profile
+        struct ProfileRow: Decodable {
+            let bio: String?
+            let interests: [String]?
+            let display_name: String?
+            let birthdate: String?
+            let city: String?
+        }
         let profile: ProfileRow? = try? await client
             .from("profiles")
-            .select("bio,interests")
+            .select("bio,interests,display_name,birthdate,city")
             .eq("user_id", value: otherUserId.uuidString)
             .single()
             .execute()
             .value
-        if let profile {
-            theirBio = profile.bio
-            theirInterests = profile.interests ?? []
-        }
 
-        // Build conversation context (last 10 non-image messages)
-        let convo = messages.suffix(10)
+        let matchProfile = WingmanMatchProfile(
+            name: profile?.display_name ?? otherName,
+            bio: profile?.bio,
+            interests: profile?.interests ?? [],
+            city: profile?.city
+        )
+
+        // Build chat history (last 15 non-image messages)
+        let chatHistory = messages.suffix(15)
             .filter { !$0.text.hasPrefix("[IMG]") }
             .map { WingmanMessage(role: $0.senderId == myId ? "me" : "them", text: $0.text) }
 
         do {
-            let input = WingmanInput(
-                theirName: otherName,
-                theirBio: theirBio,
-                theirInterests: theirInterests,
-                conversation: convo
+            let response = try await AIService.shared.suggestMessage(
+                conversationId: matchId.uuidString,
+                chatHistory: chatHistory,
+                matchProfile: matchProfile,
+                screenContext: "chat"
             )
-            let response = try await AIService.shared.generateChatSuggestions(input: input)
-            self.wingSuggestions = response.suggestions
+            self.wingmanResponse = response
             AnalyticsService.shared.track(.wingmanUsed, properties: ["match_id": matchId.uuidString])
         } catch {
             self.errorText = "Wingman: \(error.localizedDescription)"

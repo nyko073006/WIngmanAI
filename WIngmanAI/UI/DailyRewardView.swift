@@ -40,86 +40,86 @@ struct DailyRewardView: View {
                 .opacity(burstOpacity)
                 .ignoresSafeArea()
 
-            VStack(spacing: boxState == .revealed ? 16 : 28) {
-                Spacer()
+            GeometryReader { geo in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: boxState == .revealed ? 12 : 28) {
+                        streakBadge
+                            .scaleEffect(streakBadgeScale)
+                            .padding(.top, 12)
 
-                // Streak badge
-                streakBadge
-                    .scaleEffect(streakBadgeScale)
+                        if boxState != .revealed {
+                            ZStack {
+                                Circle()
+                                    .fill(Theme.brand.opacity(0.15))
+                                    .frame(width: 160, height: 160)
+                                    .blur(radius: glowRadius)
 
-                // The Box
-                ZStack {
-                    // Glow
-                    Circle()
-                        .fill(Theme.brand.opacity(0.15))
-                        .frame(width: boxState == .revealed ? 100 : 160, height: boxState == .revealed ? 100 : 160)
-                        .blur(radius: glowRadius)
+                                Text("🎁")
+                                    .font(.system(size: 90))
+                                    .offset(x: shakeOffset)
+                                    .scaleEffect(boxScale)
+                                    .opacity(boxOpacity)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.4), value: shakeOffset)
+                                    .animation(.spring(response: 0.4, dampingFraction: 0.5), value: boxScale)
+                            }
+                            .frame(height: 160)
+                        }
 
-                    // Box emoji
-                    Text(boxState == .revealed ? "✨" : "🎁")
-                        .font(.system(size: boxState == .revealed ? 60 : 90))
-                        .offset(x: shakeOffset)
-                        .scaleEffect(boxScale)
-                        .opacity(boxOpacity)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.4), value: shakeOffset)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.5), value: boxScale)
-                }
-                .frame(height: boxState == .revealed ? 80 : 160)
+                        VStack(spacing: 4) {
+                            Text(boxState == .revealed ? "Daily Reward abgeholt!" : "Daily Reward")
+                                .font(.system(boxState == .revealed ? .title3 : .title2, design: .rounded).weight(.bold))
+                            Text(boxState == .revealed
+                                 ? "Deine Credits wurden gutgeschrieben."
+                                 : "Tag \(rewardService.currentStreak + 1) Streak · täglich öffnen")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
 
-                // Title
-                VStack(spacing: 4) {
-                    Text(boxState == .revealed ? "Daily Reward abgeholt!" : "Daily Reward")
-                        .font(.system(boxState == .revealed ? .title3 : .title2, design: .rounded).weight(.bold))
-                    Text(boxState == .revealed
-                         ? "Deine Credits wurden gutgeschrieben."
-                         : "Tag \(rewardService.currentStreak + 1) Streak · täglich öffnen")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
+                        if boxState == .revealed, let reward = claimedReward {
+                            HStack(spacing: 12) {
+                                rewardItem(icon: "sparkles",
+                                           value: "+\(reward.aiCredits)",
+                                           label: "AI-Credits",
+                                           color: Theme.brand)
+                                .offset(y: item1Offset)
+                                .opacity(item1Opacity)
 
-                // Reward items (appear after opening)
-                if boxState == .revealed, let reward = claimedReward {
-                    HStack(spacing: 12) {
-                        rewardItem(icon: "sparkles",
-                                   value: "+\(reward.aiCredits)",
-                                   label: "AI-Credits",
-                                   color: Theme.brand)
-                        .offset(y: item1Offset)
-                        .opacity(item1Opacity)
+                                let altColor = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
+                                rewardItem(icon: "hand.draw.fill",
+                                           value: "+\(reward.bonusSwipes)",
+                                           label: "Bonus Swipes",
+                                           color: altColor)
+                                .offset(y: item2Offset)
+                                .opacity(item2Opacity)
+                            }
 
-                        let altColor = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
-                        rewardItem(icon: "hand.draw.fill",
-                                   value: "+\(reward.bonusSwipes)",
-                                   label: "Bonus Swipes",
-                                   color: altColor)
-                        .offset(y: item2Offset)
-                        .opacity(item2Opacity)
+                            if reward.isJackpot {
+                                Text("🎉 Jackpot! 7-Tage-Streak!")
+                                    .font(.system(.caption, design: .rounded).weight(.bold))
+                                    .foregroundStyle(Theme.brand)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Theme.brand.opacity(0.12))
+                                    .clipShape(Capsule())
+                                    .offset(y: item2Offset)
+                                    .opacity(item2Opacity)
+                            }
+                        }
+
+                        actionButton
+                            .padding(.top, 8)
+
+                        weekStrip
+                            .padding(.bottom, 12)
                     }
-
-                    if reward.isJackpot {
-                        Text("🎉 Jackpot! 7-Tage-Streak!")
-                            .font(.system(.caption, design: .rounded).weight(.bold))
-                            .foregroundStyle(Theme.brand)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Theme.brand.opacity(0.12))
-                            .clipShape(Capsule())
-                            .offset(y: item2Offset)
-                            .opacity(item2Opacity)
-                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: geo.size.height, alignment: .top)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
                 }
-
-                Spacer()
-
-                // CTA
-                actionButton
-
-                // 7-day strip
-                weekStrip
-                    .padding(.bottom, 8)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .padding(.horizontal, 24)
         }
     }
 
@@ -340,5 +340,5 @@ private struct BurstView: View {
 
 #Preview {
     DailyRewardView()
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
 }

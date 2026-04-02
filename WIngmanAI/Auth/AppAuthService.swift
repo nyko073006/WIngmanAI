@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import Supabase
 import Auth
+import AuthenticationServices
 
 
 @MainActor
@@ -42,24 +43,20 @@ final class AppAuthService: ObservableObject {
         // IMPORTANT:
         // A missing session on fresh install / logged-out state is NORMAL.
         // So we first read the optional in-memory/local session without throwing.
-        self.session = client.auth.currentSession
-        self.user = self.session?.user
+        setSession(client.auth.currentSession)
 
-        // If we do have a session, try to refresh/validate it.
-        // If refresh fails, we keep the existing session and only surface non-"missing session" errors.
-        if self.session != nil {
-            do {
-                let refreshed = try await client.auth.session
-                self.session = refreshed
-                self.user = refreshed.user
-            } catch {
-                let msg = error.localizedDescription.lowercased()
-                if !(msg.contains("session") && (msg.contains("missing") || msg.contains("not found"))) {
-                    self.error = AppError(
-                        title: "Session aktualisieren fehlgeschlagen",
-                        message: error.localizedDescription
-                    )
-                }
+        // Always attempt async refresh — currentSession may be nil synchronously
+        // even when a valid session exists in the Keychain (SDK loads it async).
+        do {
+            let refreshed = try await client.auth.session
+            setSession(refreshed)
+        } catch {
+            let msg = error.localizedDescription.lowercased()
+            if !(msg.contains("session") && (msg.contains("missing") || msg.contains("not found"))) {
+                self.error = AppError(
+                    title: "Session aktualisieren fehlgeschlagen",
+                    message: error.localizedDescription
+                )
             }
         }
 
@@ -67,6 +64,13 @@ final class AppAuthService: ObservableObject {
         if self.session != nil {
             await updateLastActive()
         }
+    }
+
+    /// Single point of truth for session changes — always syncs AIService token.
+    private func setSession(_ s: Session?) {
+        self.session = s
+        self.user = s?.user
+        // AIService fetches the token dynamically now.
     }
 
     func updateLastActive() async {
@@ -90,8 +94,7 @@ final class AppAuthService: ObservableObject {
             let response = try await client.auth.signUp(email: email, password: password)
 
             // If email confirmation is ON, session is often nil here.
-            self.session = response.session
-            self.user = response.user
+            setSession(response.session)
 
             if response.session == nil {
                 self.error = AppError(
@@ -111,8 +114,7 @@ final class AppAuthService: ObservableObject {
 
         do {
             let session = try await client.auth.signIn(email: email, password: password)
-            self.session = session
-            self.user = session.user
+            setSession(session)
         } catch {
             self.error = AppError(title: "Sign In fehlgeschlagen", message: error.localizedDescription)
         }
@@ -139,10 +141,54 @@ final class AppAuthService: ObservableObject {
 
         do {
             try await client.auth.signOut()
-            self.session = nil
-            self.user = nil
+            setSession(nil)
         } catch {
             self.error = AppError(title: "Sign Out fehlgeschlagen", message: error.localizedDescription)
+        }
+    }
+
+    // MARK: - Apple Sign In
+
+    func handleAppleResult(_ result: Result<ASAuthorization, Error>) async {
+        switch result {
+        case .failure(let err):
+            if let authErr = err as? ASAuthorizationError, authErr.code == .canceled { return }
+            self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: err.localizedDescription)
+
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = credential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8) else {
+                self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: "Kein Identity Token erhalten.")
+                return
+            }
+
+            isBusy = true
+            error = nil
+            defer { isBusy = false }
+
+            do {
+                let session = try await client.auth.signInWithIdToken(
+                    credentials: .init(provider: .apple, idToken: idToken)
+                )
+                setSession(session)
+
+                // Apple only sends full name on first sign-in
+                if let fullName = credential.fullName {
+                    let parts = [fullName.givenName, fullName.familyName].compactMap { $0 }
+                    let name = parts.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+                    if !name.isEmpty {
+                        struct NameUpdate: Encodable { let display_name: String }
+                        _ = try? await client
+                            .from("profiles")
+                            .update(NameUpdate(display_name: name))
+                            .eq("user_id", value: session.user.id.uuidString)
+                            .execute()
+                    }
+                }
+            } catch {
+                self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: error.localizedDescription)
+            }
         }
     }
 
@@ -150,7 +196,8 @@ final class AppAuthService: ObservableObject {
         isBusy = true
         defer { isBusy = false }
 
-        guard let accessToken = client.auth.currentSession?.accessToken else {
+        let session = try? await client.auth.session
+        guard let accessToken = session?.accessToken else {
             self.error = AppError(title: "Account löschen fehlgeschlagen", message: "Keine aktive Session.")
             return
         }
@@ -162,10 +209,10 @@ final class AppAuthService: ObservableObject {
                     headers: ["Authorization": "Bearer \(accessToken)"]
                 )
             )
-            self.session = nil
-            self.user = nil
+            setSession(nil)
         } catch {
             self.error = AppError(title: "Account löschen fehlgeschlagen", message: error.localizedDescription)
         }
     }
 }
+

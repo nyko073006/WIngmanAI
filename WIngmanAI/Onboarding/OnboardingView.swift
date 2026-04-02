@@ -46,6 +46,7 @@ struct OnboardingView: View {
     // Slide 1: Interests + Keywords
     @State private var selectedInterests: Set<String> = []
     @State private var selectedKeywords: Set<String> = []
+    @State private var customVibeInput: String = ""
 
     @State private var isBusy = false
     @State private var isUploadingPhoto = false
@@ -71,18 +72,22 @@ struct OnboardingView: View {
 
     // Options (Base44-ish)
     private let interestOptions: [String] = [
-        "Reisen", "Musik", "Filme", "Fitness", "Lesen", "Kochen",
-        "Fotografie", "Kunst", "Gaming", "Tanzen", "Wandern", "Yoga",
-        "Kaffee", "Foodie", "Hunde", "Katzen", "Strand", "Berge",
-        "Sport", "Fashion", "Technik", "Meditation", "Konzerte", "Festivals"
+        "Reisen", "Fitness", "Kochen", "Musik", "Filme",
+        "Natur", "Kaffee", "Bücher", "Tanzen", "Wandern",
+        "Wein", "Yoga", "Reiten", "Gaming", "Kunst"
     ]
 
     private let keywordOptions: [String] = [
-        "Abenteuerlustig", "Kreativ", "Ambitioniert", "Empathisch",
-        "Humorvoll", "Tiefgründig", "Spontan", "Entspannt",
-        "Romantisch", "Unabhängig", "Offen", "Introvertiert",
-        "Optimistisch", "Pragmatisch", "Leidenschaftlich", "Nachdenklich",
-        "Selbstbewusst", "Neugierig"
+        // Abenteuer & Energie
+        "Abenteuerlust", "Spontan", "Kreativ", "Neugierig", "Leidenschaftlich",
+        // Sozial & Charme
+        "Humorvoll", "Empathisch", "Offen", "Romantisch", "Flirtend",
+        // Selbstbewusst & Stil
+        "Ambitioniert", "Selbstbewusst", "Unabhängig", "Optimistisch",
+        // Tiefgang & Balance
+        "Tiefgründig", "Nachdenklich", "Entspannt", "Pragmatisch",
+        // Intro & Sensibel
+        "Introvertiert", "Sensibel"
     ]
 
 
@@ -510,10 +515,10 @@ struct OnboardingView: View {
 
             sectionTitle("Ich suche")
             tileGrid {
-                InterestedTile(title: "Etwas Ernstes", icon: "heart.fill", selected: lookingFor.contains("serious"), brand: brand) { toggleLookingFor("serious") }
+                InterestedTile(title: "Etwas Ernstes", icon: "infinity", selected: lookingFor.contains("serious"), brand: brand) { toggleLookingFor("serious") }
                 InterestedTile(title: "Etwas Lockeres", icon: "sparkles", selected: lookingFor.contains("casual"), brand: brand) { toggleLookingFor("casual") }
                 InterestedTile(title: "Neue Freunde", icon: "person.2.fill", selected: lookingFor.contains("friends"), brand: brand) { toggleLookingFor("friends") }
-                InterestedTile(title: "Bin offen", icon: "infinity", selected: lookingFor.contains("open_to_all"), brand: brand) { toggleLookingFor("open_to_all") }
+                InterestedTile(title: "Bin offen", icon: "heart", selected: lookingFor.contains("open_to_all"), brand: brand) { toggleLookingFor("open_to_all") }
             }
 
             sectionTitle("Dein Standort")
@@ -662,74 +667,104 @@ struct OnboardingView: View {
 
             Divider()
 
-            // Gesprächsstarter (Hooks)
-            HStack(alignment: .firstTextBaseline) {
-                sectionTitle("Gesprächsstarter")
-                Spacer()
-                aiPillButton(title: "Neu", isLoading: ai.hooksLoading) {
-                    Task { await triggerHooksGeneration() }
-                }
-            }
-            Text("Wähle bis zu 3 – sie erscheinen auf deinem Profil und geben anderen einen Gesprächseinstieg.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if ai.hooksLoading {
-                HStack(spacing: 8) {
-                    ProgressView().scaleEffect(0.75)
-                    Text("KI erstellt Vorschläge…")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
-            } else if !ai.hookOptions.isEmpty {
-                softChipWrap {
-                    ForEach(ai.hookOptions, id: \.self) { hook in
-                        HookChip(
-                            title: hook,
-                            selected: ai.selectedHooks.contains(hook),
-                            disabled: !ai.selectedHooks.contains(hook) && ai.selectedHooks.count >= 3
-                        ) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            if ai.selectedHooks.contains(hook) {
-                                ai.selectedHooks.remove(hook)
-                            } else if ai.selectedHooks.count < 3 {
-                                ai.selectedHooks.insert(hook)
-                            }
-                        }
-                    }
-                }
-                if ai.selectedHooks.count > 0 {
-                    Text("\(ai.selectedHooks.count)/3 ausgewählt")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider()
-
             // First Date Vibes
-            sectionTitle("First Date Vibes")
-            Text("Was für ein Date magst du? Optional – hilft anderen zu sehen, was dich anspricht.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Text("💫")
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("First Date Vibes")
+                            .font(.system(.headline, design: .rounded))
+                        Text("Zeig, was dein perfektes Date ausmacht.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
 
-            if !ai.vibeOptions.isEmpty {
-                softChipWrap {
-                    ForEach(ai.vibeOptions, id: \.self) { vibe in
-                        SoftChip(
-                            title: vibe,
-                            selected: ai.selectedVibes.contains(vibe)
-                        ) {
-                            if ai.selectedVibes.contains(vibe) {
-                                ai.selectedVibes.remove(vibe)
-                            } else {
-                                ai.selectedVibes.insert(vibe)
+                if ai.hooksLoading {
+                    HStack(spacing: 8) {
+                        ProgressView().scaleEffect(0.8)
+                        Text("KI denkt nach…")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                } else if ai.vibeOptions.isEmpty {
+                    // Empty state – big generate CTA
+                    Button {
+                        Task { await triggerHooksGeneration() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkles")
+                                .font(.body.weight(.semibold))
+                            Text("Vibes generieren")
+                                .font(.body.weight(.semibold))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+                        .background(brand.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                } else {
+                    softChipWrap {
+                        ForEach(ai.vibeOptions, id: \.self) { vibe in
+                            SoftChip(
+                                title: vibe,
+                                selected: ai.selectedVibes.contains(vibe)
+                            ) {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                if ai.selectedVibes.contains(vibe) {
+                                    ai.selectedVibes.remove(vibe)
+                                } else {
+                                    ai.selectedVibes.insert(vibe)
+                                }
                             }
                         }
                     }
+
+                    if ai.selectedVibes.count > 0 {
+                        Text("\(ai.selectedVibes.count) ausgewählt")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Regenerate link
+                    Button {
+                        Task { await triggerHooksGeneration() }
+                    } label: {
+                        Label("Neue Vorschläge", systemImage: "arrow.clockwise")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(brand)
+                    }
+                }
+
+                // Custom vibe input
+                HStack(spacing: 8) {
+                    TextField("Eigenen Vibe hinzufügen…", text: $customVibeInput)
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .submitLabel(.done)
+                        .onSubmit { addCustomVibe() }
+                    Button(action: addCustomVibe) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(customVibeInput.trimmed.isEmpty ? Color.secondary : brand)
+                    }
+                    .disabled(customVibeInput.trimmed.isEmpty)
                 }
             }
+            .padding(16)
+            .background(Color(.secondarySystemBackground).opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .onChange(of: selectedInterests) { _, _ in scheduleDraftSave() }
         .onChange(of: selectedKeywords) { _, _ in scheduleDraftSave() }
@@ -1080,6 +1115,17 @@ private func softChipWrap<Content: View>(@ViewBuilder _ content: () -> Content) 
                 .foregroundStyle(.primary)
             Spacer()
         }
+    }
+
+    private func addCustomVibe() {
+        let vibe = customVibeInput.trimmed
+        guard !vibe.isEmpty else { return }
+        if !ai.vibeOptions.contains(vibe) {
+            ai.vibeOptions.append(vibe)
+        }
+        ai.selectedVibes.insert(vibe)
+        customVibeInput = ""
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func triggerHooksGeneration() async {
@@ -2182,51 +2228,69 @@ private struct BioAIDirectionSheet: View {
     let onSelect: (String) -> Void
 
     enum Tone: String, CaseIterable, Identifiable {
-        case playful, witty, direct, warm, serious
+        case playful, witty, direct, warm, serious, authentic
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .playful: return "Verspielt"
-            case .witty:   return "Witzig"
-            case .direct:  return "Direkt"
-            case .warm:    return "Herzlich"
-            case .serious: return "Ernst"
+            case .playful:   return "Verspielt"
+            case .witty:     return "Witzig"
+            case .direct:    return "Direkt"
+            case .warm:      return "Herzlich"
+            case .serious:   return "Ernst"
+            case .authentic: return "Authentisch"
             }
         }
         var subtitle: String {
             switch self {
-            case .playful: return "locker & charmant"
-            case .witty:   return "humor & schlagfertig"
-            case .direct:  return "klar & auf den Punkt"
-            case .warm:    return "offen & nahbar"
-            case .serious: return "tiefgründig & fokussiert"
+            case .playful:   return "locker & charmant"
+            case .witty:     return "humor & schlagfertig"
+            case .direct:    return "klar & auf den Punkt"
+            case .warm:      return "offen & nahbar"
+            case .serious:   return "tiefgründig & fokussiert"
+            case .authentic: return "ehrlich & ungefiltert"
             }
         }
         var icon: String {
             switch self {
-            case .playful: return "face.smiling"
-            case .witty:   return "sparkles"
-            case .direct:  return "bolt.fill"
-            case .warm:    return "heart.fill"
-            case .serious: return "target"
+            case .playful:   return "face.smiling"
+            case .witty:     return "sparkles"
+            case .direct:    return "bolt.fill"
+            case .warm:      return "heart.fill"
+            case .serious:   return "target"
+            case .authentic: return "hands.clap.fill"
             }
         }
     }
 
     enum BioLen: String, CaseIterable, Identifiable {
-        case short, medium
+        case short, medium, long
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .short:  return "Kurz (1–2 Zeilen)"
-            case .medium: return "Mittel (3–5 Zeilen)"
+            case .short:  return "Kurz"
+            case .medium: return "Mittel"
+            case .long:   return "Lang"
+            }
+        }
+        var sublabel: String {
+            switch self {
+            case .short:  return "1–2 Sätze"
+            case .medium: return "3–4 Sätze"
+            case .long:   return "5–7 Sätze"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .short:  return "text.alignleft"
+            case .medium: return "text.justify"
+            case .long:   return "doc.text.fill"
             }
         }
     }
 
     @Environment(\.dismiss) private var dismiss
     @State private var tone: Tone = .playful
-    @State private var bioLen: BioLen = .short
+    @State private var bioLen: BioLen = .medium
     @State private var isGenerating: Bool = false
     @State private var suggestions: [String] = []
 
@@ -2235,77 +2299,145 @@ private struct BioAIDirectionSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 0) {
 
-                    // Header
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Bio-Vorschläge")
-                            .font(.title2.weight(.bold))
-                        Text("Wähle Stil und Länge – der Wingman schreibt für dich.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    // Premium Header
+                    ZStack(alignment: .bottomLeading) {
+                        LinearGradient(
+                            colors: [brand.opacity(0.18), brand.opacity(0.04)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea(edges: .top)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 10) {
+                                ZStack {
+                                    Circle().fill(brand.opacity(0.15)).frame(width: 40, height: 40)
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 17, weight: .semibold))
+                                        .foregroundStyle(brand)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Bio-Vorschläge")
+                                        .font(.title2.weight(.bold))
+                                    Text("Der KI-Wingman schreibt für dich.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding(20)
+                        .padding(.bottom, 8)
                     }
 
-                    // Tone grid
+                    VStack(alignment: .leading, spacing: 22) {
+
+                    // Stil tiles
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Stil")
+                        Label("Dein Stil", systemImage: "paintbrush.fill")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary)
+
                         LazyVGrid(columns: columns, spacing: 10) {
                             ForEach(Tone.allCases) { t in
                                 Button {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    withAnimation(.easeInOut(duration: 0.15)) { tone = t }
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { tone = t }
                                 } label: {
                                     HStack(spacing: 10) {
                                         ZStack {
-                                            Circle()
-                                                .fill(tone == t ? Color.white.opacity(0.22) : brand.opacity(0.10))
-                                                .frame(width: 34, height: 34)
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(tone == t ? Color.white.opacity(0.2) : brand.opacity(0.09))
+                                                .frame(width: 36, height: 36)
                                             Image(systemName: t.icon)
-                                                .font(.system(size: 15, weight: .semibold))
+                                                .font(.system(size: 16, weight: .semibold))
                                                 .foregroundStyle(tone == t ? .white : brand)
                                         }
-                                        VStack(alignment: .leading, spacing: 1) {
+                                        VStack(alignment: .leading, spacing: 2) {
                                             Text(t.label)
-                                                .font(.subheadline.weight(.semibold))
+                                                .font(.subheadline.weight(.bold))
                                             Text(t.subtitle)
                                                 .font(.caption2)
-                                                .opacity(0.8)
+                                                .lineLimit(2)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                                .opacity(tone == t ? 0.85 : 0.55)
                                         }
                                         Spacer()
+                                        if tone == t {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.9))
+                                        }
                                     }
                                     .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
+                                    .padding(.vertical, 11)
                                     .foregroundStyle(tone == t ? .white : .primary)
                                     .background(
                                         tone == t
-                                            ? AnyShapeStyle(LinearGradient(
-                                                colors: [brand, brand.opacity(0.78)],
-                                                startPoint: .topLeading, endPoint: .bottomTrailing))
-                                            : AnyShapeStyle(Color(.systemGray6))
+                                        ? AnyShapeStyle(LinearGradient(
+                                            colors: [brand, brand.opacity(0.75)],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                                        : AnyShapeStyle(Color(.systemGray6))
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
                                     .overlay(RoundedRectangle(cornerRadius: 14)
-                                        .stroke(tone == t ? Color.clear : Color.gray.opacity(0.15), lineWidth: 1))
-                                    .shadow(color: tone == t ? brand.opacity(0.28) : .clear, radius: 8, y: 4)
+                                        .stroke(tone == t ? brand.opacity(0.0) : Color.gray.opacity(0.12), lineWidth: 1))
+                                    .shadow(color: tone == t ? brand.opacity(0.32) : .black.opacity(0.04), radius: tone == t ? 10 : 4, y: tone == t ? 5 : 2)
+                                    .scaleEffect(tone == t ? 1.01 : 1.0)
                                 }
                                 .buttonStyle(.plain)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tone)
                             }
                         }
                     }
 
-                    // Length selector
+                    // Länge tiles
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Länge")
+                        Label("Bio-Länge", systemImage: "text.alignleft")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Picker("", selection: $bioLen) {
+                            .foregroundStyle(.primary)
+
+                        HStack(spacing: 10) {
                             ForEach(BioLen.allCases) { l in
-                                Text(l.label).tag(l)
+                                Button {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { bioLen = l }
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(bioLen == l ? Color.white.opacity(0.2) : brand.opacity(0.09))
+                                                .frame(width: 38, height: 38)
+                                            Image(systemName: l.icon)
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundStyle(bioLen == l ? .white : brand)
+                                        }
+                                        Text(l.label)
+                                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                                        Text(l.sublabel)
+                                            .font(.caption2)
+                                            .opacity(bioLen == l ? 0.85 : 0.5)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .foregroundStyle(bioLen == l ? .white : .primary)
+                                    .background(
+                                        bioLen == l
+                                        ? AnyShapeStyle(LinearGradient(
+                                            colors: [brand, brand.opacity(0.75)],
+                                            startPoint: .top, endPoint: .bottom))
+                                        : AnyShapeStyle(Color(.systemGray6))
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .overlay(RoundedRectangle(cornerRadius: 14)
+                                        .stroke(bioLen == l ? Color.clear : Color.gray.opacity(0.12), lineWidth: 1))
+                                    .shadow(color: bioLen == l ? brand.opacity(0.3) : .clear, radius: 8, y: 4)
+                                    .scaleEffect(bioLen == l ? 1.02 : 1.0)
+                                }
+                                .buttonStyle(.plain)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: bioLen)
                             }
                         }
-                        .pickerStyle(.segmented)
                     }
 
                     PrimaryGradientButton(
@@ -2314,6 +2446,21 @@ private struct BioAIDirectionSheet: View {
                         isDisabled: isGenerating
                     ) {
                         Task { await generateWithAI() }
+                    }
+
+                    if let err = ai.bioError {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                            Text(err)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
 
                     // Suggestions
@@ -2358,8 +2505,11 @@ private struct BioAIDirectionSheet: View {
                         }
                         .animation(.easeOut(duration: 0.22), value: suggestions.count)
                     }
+
+                    }
+                    .padding(20)
+                    .padding(.bottom, 30)
                 }
-                .padding(20)
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
@@ -2377,7 +2527,7 @@ private struct BioAIDirectionSheet: View {
         defer { isGenerating = false }
 
         let bioTone = BioInput.Tone(rawValue: tone.rawValue) ?? .playful
-        let bioLength = BioInput.BioLength(rawValue: bioLen.rawValue) ?? .short
+        let bioLength = BioInput.BioLength(rawValue: bioLen.rawValue) ?? .medium
 
         let input = BioInput(
             displayName: displayName.trimmed.isEmpty ? nil : displayName.trimmed,
@@ -2385,14 +2535,16 @@ private struct BioAIDirectionSheet: View {
             interestedIn: interestedIn.isEmpty ? nil : interestedIn,
             city: city.trimmed.isEmpty ? nil : city.trimmed,
             lookingFor: lookingFor.isEmpty ? nil : lookingFor,
-            interests: interests,
+            interests: interests.isEmpty ? ["dating", "kennenlernen", "gespräche"] : interests,
             keywords: keywords,
             tone: bioTone,
             length: bioLength,
             adjustment: nil
         )
 
+        print("[BioAI] interests=\(input.interests), tone=\(input.tone.rawValue), length=\(input.length.rawValue)")
         await ai.generateBio(input: input)
+        print("[BioAI] result count=\(ai.bioOptions.count), error=\(ai.bioError ?? "none")")
         suggestions = ai.bioOptions
     }
 }

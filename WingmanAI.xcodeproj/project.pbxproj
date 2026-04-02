@@ -13,36 +13,96 @@
 		210F8C332F2E8E06000C4B92 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C322F2E8E06000C4B92 /* Realtime */; };
 		210F8C352F2E8E06000C4B92 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C342F2E8E06000C4B92 /* Storage */; };
 		210F8C372F2E8E06000C4B92 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 210F8C362F2E8E06000C4B92 /* Supabase */; };
-		2173AEC42F2EB68400B78445 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEAF2F2EB68400B78445 /* MainView.swift */; };
+		216D958C2F7CF644007196FB /* DateDebriefView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 216D958B2F7CF644007196FB /* DateDebriefView.swift */; };
 		2173AEC52F2EB68400B78445 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB02F2EB68400B78445 /* RootView.swift */; };
 		2173AEC62F2EB68400B78445 /* WIngmanAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB12F2EB68400B78445 /* WIngmanAIApp.swift */; };
 		2173AEC72F2EB68400B78445 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB32F2EB68400B78445 /* AppError.swift */; };
-		2173AEC82F2EB68400B78445 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB42F2EB68400B78445 /* AuthService.swift */; };
+		2173AEC82F2EB68400B78445 /* AppAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB42F2EB68400B78445 /* AppAuthService.swift */; };
 		2173AEC92F2EB68400B78445 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB52F2EB68400B78445 /* AuthView.swift */; };
-		2173AECB2F2EB68400B78445 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB82F2EB68400B78445 /* SupabaseClient.swift */; };
 		2173AECC2F2EB68400B78445 /* OnboardingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEBA2F2EB68400B78445 /* OnboardingService.swift */; };
 		2173AECD2F2EB68400B78445 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEBB2F2EB68400B78445 /* OnboardingView.swift */; };
-		2173AECE2F2EB68400B78445 /* MainVIew.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEBE2F2EB68400B78445 /* MainVIew.swift */; };
-		2173AECF2F2EB68400B78445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEC12F2EB68400B78445 /* ContentView.swift */; };
 		2173AED02F2EB68400B78445 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2173AEC02F2EB68400B78445 /* Assets.xcassets */; };
-		2173AED12F2EB68400B78445 /* Supabase.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2173AEC22F2EB68400B78445 /* Supabase.plist */; };
+		2173AED12F2EB68400B78445 /* (null) in Resources */ = {isa = PBXBuildFile; };
+		2173AED22F2EB68400B78446 /* SupabaseClientProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AED32F2EB68400B78446 /* SupabaseClientProvider.swift */; };
+		AA010001AAAAAAAA00000001 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000001 /* AIService.swift */; };
+		AA010001AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift */; };
+		AA010001AAAAAAAA00000005 /* LocationRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000020 /* LocationRefreshService.swift */; };
+		AA010001AAAAAAAA00000006 /* MatchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000006 /* MatchService.swift */; };
+		AA010001AAAAAAAA00000007 /* MatchesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000007 /* MatchesService.swift */; };
+		AA010001AAAAAAAA00000008 /* PhotoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000008 /* PhotoService.swift */; };
+		AA010001AAAAAAAA00000009 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB82F2EB68400B78445 /* SupabaseClient.swift */; };
+		AA010001AAAAAAAA00000010 /* SwipeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000010 /* SwipeService.swift */; };
+		AA010001AAAAAAAA00000011 /* ProfileTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000011 /* ProfileTabView.swift */; };
+		AA010001AAAAAAAA00000012 /* PublicProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000012 /* PublicProfile.swift */; };
+		AA010001AAAAAAAA00000013 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000013 /* CachedAsyncImage.swift */; };
+		AA010001AAAAAAAA00000014 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000014 /* ChatView.swift */; };
+		AA010001AAAAAAAA00000015 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000015 /* ChatViewModel.swift */; };
+		AA010001AAAAAAAA00000016 /* DiscoverProfilesParams.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000016 /* DiscoverProfilesParams.swift */; };
+		AA010001AAAAAAAA00000017 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000017 /* DiscoverView.swift */; };
+		AA010001AAAAAAAA00000018 /* DiscoverViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000018 /* DiscoverViewModel.swift */; };
+		AA010001AAAAAAAA00000019 /* LikesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000019 /* LikesView.swift */; };
+		AA010001AAAAAAAA00000021 /* MatchesTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000021 /* MatchesTabView.swift */; };
+		AA010001AAAAAAAA00000022 /* MatchesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000022 /* MatchesView.swift */; };
+		AA010001AAAAAAAA00000023 /* MatchesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000023 /* MatchesViewModel.swift */; };
+		AA010001AAAAAAAA00000024 /* OnboardingAIViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000024 /* OnboardingAIViewModel.swift */; };
+		AA010001AAAAAAAA00000025 /* UsageLimitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000025 /* UsageLimitService.swift */; };
+		AA010001AAAAAAAA00000026 /* PremiumService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000026 /* PremiumService.swift */; };
+		AA010001AAAAAAAA00000027 /* DailyRewardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000027 /* DailyRewardService.swift */; };
+		AA010001AAAAAAAA00000028 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000028 /* AnalyticsService.swift */; };
+		AA010001AAAAAAAA00000029 /* BoostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000029 /* BoostService.swift */; };
+		AA010001AAAAAAAA00000030 /* SubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000030 /* SubscriptionView.swift */; };
+		AA010001AAAAAAAA00000031 /* DailyRewardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000031 /* DailyRewardView.swift */; };
+		AA010001AAAAAAAA00000032 /* BoostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000032 /* BoostView.swift */; };
+		AA020001AAAAAAAA00000033 /* ClosureFlowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA020002AAAAAAAA00000033 /* ClosureFlowSheet.swift */; };
+		AA020001AAAAAAAA00000034 /* BoundarySettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA020002AAAAAAAA00000034 /* BoundarySettingsSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		210F8C1D2F2E8A1F000C4B92 /* WIngmanAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WIngmanAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		2173AEAF2F2EB68400B78445 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		211B87012F7A68D800E0285F /* WIngmanAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WIngmanAI.entitlements; sourceTree = "<group>"; };
+		215B87002F7A68D800E0285F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		216D958B2F7CF644007196FB /* DateDebriefView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateDebriefView.swift; sourceTree = "<group>"; };
 		2173AEB02F2EB68400B78445 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2173AEB12F2EB68400B78445 /* WIngmanAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WIngmanAIApp.swift; sourceTree = "<group>"; };
 		2173AEB32F2EB68400B78445 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
-		2173AEB42F2EB68400B78445 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		2173AEB42F2EB68400B78445 /* AppAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAuthService.swift; sourceTree = "<group>"; };
 		2173AEB52F2EB68400B78445 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		2173AEB82F2EB68400B78445 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		2173AEBA2F2EB68400B78445 /* OnboardingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingService.swift; sourceTree = "<group>"; };
 		2173AEBB2F2EB68400B78445 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		2173AEBE2F2EB68400B78445 /* MainVIew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainVIew.swift; sourceTree = "<group>"; };
 		2173AEC02F2EB68400B78445 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		2173AEC12F2EB68400B78445 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		2173AEC22F2EB68400B78445 /* Supabase.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Supabase.plist; sourceTree = "<group>"; };
+		2173AED32F2EB68400B78446 /* SupabaseClientProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClientProvider.swift; sourceTree = "<group>"; };
+		21CE59A52F7E528E0056A33F /* WIngmanAIRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WIngmanAIRelease.entitlements; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000001 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIcebreakerGenerator.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000006 /* MatchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000007 /* MatchesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchesService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000008 /* PhotoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000010 /* SwipeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000011 /* ProfileTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileTabView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000012 /* PublicProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfile.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000013 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000014 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000015 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000016 /* DiscoverProfilesParams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverProfilesParams.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000017 /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000018 /* DiscoverViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverViewModel.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000019 /* LikesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000020 /* LocationRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationRefreshService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000021 /* MatchesTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchesTabView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000022 /* MatchesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchesView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000023 /* MatchesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchesViewModel.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000024 /* OnboardingAIViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingAIViewModel.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000025 /* UsageLimitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageLimitService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000026 /* PremiumService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000027 /* DailyRewardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRewardService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000028 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000029 /* BoostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostService.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000030 /* SubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000031 /* DailyRewardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRewardView.swift; sourceTree = "<group>"; };
+		AA010002AAAAAAAA00000032 /* BoostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostView.swift; sourceTree = "<group>"; };
+		AA020002AAAAAAAA00000033 /* ClosureFlowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClosureFlowSheet.swift; sourceTree = "<group>"; };
+		AA020002AAAAAAAA00000034 /* BoundarySettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundarySettingsSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,7 +141,6 @@
 		2173AEB22F2EB68400B78445 /* App */ = {
 			isa = PBXGroup;
 			children = (
-				2173AEAF2F2EB68400B78445 /* MainView.swift */,
 				2173AEB02F2EB68400B78445 /* RootView.swift */,
 				2173AEB12F2EB68400B78445 /* WIngmanAIApp.swift */,
 			);
@@ -92,8 +151,9 @@
 			isa = PBXGroup;
 			children = (
 				2173AEB32F2EB68400B78445 /* AppError.swift */,
-				2173AEB42F2EB68400B78445 /* AuthService.swift */,
+				2173AEB42F2EB68400B78445 /* AppAuthService.swift */,
 				2173AEB52F2EB68400B78445 /* AuthView.swift */,
+				2173AED32F2EB68400B78446 /* SupabaseClientProvider.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -102,6 +162,17 @@
 			isa = PBXGroup;
 			children = (
 				2173AEB82F2EB68400B78445 /* SupabaseClient.swift */,
+				AA010002AAAAAAAA00000001 /* AIService.swift */,
+				AA010002AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift */,
+				AA010002AAAAAAAA00000006 /* MatchService.swift */,
+				AA010002AAAAAAAA00000007 /* MatchesService.swift */,
+				AA010002AAAAAAAA00000008 /* PhotoService.swift */,
+				AA010002AAAAAAAA00000010 /* SwipeService.swift */,
+				AA010002AAAAAAAA00000025 /* UsageLimitService.swift */,
+				AA010002AAAAAAAA00000026 /* PremiumService.swift */,
+				AA010002AAAAAAAA00000027 /* DailyRewardService.swift */,
+				AA010002AAAAAAAA00000028 /* AnalyticsService.swift */,
+				AA010002AAAAAAAA00000029 /* BoostService.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -111,6 +182,7 @@
 			children = (
 				2173AEBA2F2EB68400B78445 /* OnboardingService.swift */,
 				2173AEBB2F2EB68400B78445 /* OnboardingView.swift */,
+				AA010002AAAAAAAA00000024 /* OnboardingAIViewModel.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -118,6 +190,8 @@
 		2173AEBD2F2EB68400B78445 /* Profile */ = {
 			isa = PBXGroup;
 			children = (
+				AA010002AAAAAAAA00000011 /* ProfileTabView.swift */,
+				AA010002AAAAAAAA00000012 /* PublicProfile.swift */,
 			);
 			path = Profile;
 			sourceTree = "<group>";
@@ -125,7 +199,23 @@
 		2173AEBF2F2EB68400B78445 /* UI */ = {
 			isa = PBXGroup;
 			children = (
-				2173AEBE2F2EB68400B78445 /* MainVIew.swift */,
+				AA010002AAAAAAAA00000013 /* CachedAsyncImage.swift */,
+				AA010002AAAAAAAA00000014 /* ChatView.swift */,
+				AA010002AAAAAAAA00000015 /* ChatViewModel.swift */,
+				216D958B2F7CF644007196FB /* DateDebriefView.swift */,
+				AA010002AAAAAAAA00000016 /* DiscoverProfilesParams.swift */,
+				AA010002AAAAAAAA00000017 /* DiscoverView.swift */,
+				AA010002AAAAAAAA00000018 /* DiscoverViewModel.swift */,
+				AA010002AAAAAAAA00000019 /* LikesView.swift */,
+				AA010002AAAAAAAA00000020 /* LocationRefreshService.swift */,
+				AA010002AAAAAAAA00000021 /* MatchesTabView.swift */,
+				AA010002AAAAAAAA00000022 /* MatchesView.swift */,
+				AA010002AAAAAAAA00000023 /* MatchesViewModel.swift */,
+				AA010002AAAAAAAA00000030 /* SubscriptionView.swift */,
+				AA010002AAAAAAAA00000031 /* DailyRewardView.swift */,
+				AA010002AAAAAAAA00000032 /* BoostView.swift */,
+				AA020002AAAAAAAA00000033 /* ClosureFlowSheet.swift */,
+				AA020002AAAAAAAA00000034 /* BoundarySettingsSheet.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -133,6 +223,9 @@
 		2173AEC32F2EB68400B78445 /* WIngmanAI */ = {
 			isa = PBXGroup;
 			children = (
+				21CE59A52F7E528E0056A33F /* WIngmanAIRelease.entitlements */,
+				211B87012F7A68D800E0285F /* WIngmanAI.entitlements */,
+				215B87002F7A68D800E0285F /* Info.plist */,
 				2173AEB22F2EB68400B78445 /* App */,
 				2173AEB62F2EB68400B78445 /* Auth */,
 				2173AEB92F2EB68400B78445 /* Core */,
@@ -140,8 +233,6 @@
 				2173AEBD2F2EB68400B78445 /* Profile */,
 				2173AEBF2F2EB68400B78445 /* UI */,
 				2173AEC02F2EB68400B78445 /* Assets.xcassets */,
-				2173AEC12F2EB68400B78445 /* ContentView.swift */,
-				2173AEC22F2EB68400B78445 /* Supabase.plist */,
 			);
 			path = WIngmanAI;
 			sourceTree = "<group>";
@@ -189,7 +280,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 210F8C182F2E8A1F000C4B92 /* Build configuration list for PBXProject "WIngmanAI" */;
+			buildConfigurationList = 210F8C182F2E8A1F000C4B92 /* Build configuration list for PBXProject "WingmanAI" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -217,7 +308,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2173AED02F2EB68400B78445 /* Assets.xcassets in Resources */,
-				2173AED12F2EB68400B78445 /* Supabase.plist in Resources */,
+				2173AED12F2EB68400B78445 /* (null) in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -228,17 +319,46 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2173AEC42F2EB68400B78445 /* MainView.swift in Sources */,
 				2173AEC52F2EB68400B78445 /* RootView.swift in Sources */,
 				2173AEC62F2EB68400B78445 /* WIngmanAIApp.swift in Sources */,
 				2173AEC72F2EB68400B78445 /* AppError.swift in Sources */,
-				2173AEC82F2EB68400B78445 /* AuthService.swift in Sources */,
+				2173AEC82F2EB68400B78445 /* AppAuthService.swift in Sources */,
 				2173AEC92F2EB68400B78445 /* AuthView.swift in Sources */,
-				2173AECB2F2EB68400B78445 /* SupabaseClient.swift in Sources */,
+				2173AED22F2EB68400B78446 /* SupabaseClientProvider.swift in Sources */,
 				2173AECC2F2EB68400B78445 /* OnboardingService.swift in Sources */,
 				2173AECD2F2EB68400B78445 /* OnboardingView.swift in Sources */,
-				2173AECE2F2EB68400B78445 /* MainVIew.swift in Sources */,
-				2173AECF2F2EB68400B78445 /* ContentView.swift in Sources */,
+				AA010001AAAAAAAA00000001 /* AIService.swift in Sources */,
+				AA010001AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift in Sources */,
+				AA010001AAAAAAAA00000005 /* LocationRefreshService.swift in Sources */,
+				AA010001AAAAAAAA00000006 /* MatchService.swift in Sources */,
+				AA010001AAAAAAAA00000007 /* MatchesService.swift in Sources */,
+				AA010001AAAAAAAA00000008 /* PhotoService.swift in Sources */,
+				AA010001AAAAAAAA00000009 /* SupabaseClient.swift in Sources */,
+				AA010001AAAAAAAA00000010 /* SwipeService.swift in Sources */,
+				AA010001AAAAAAAA00000011 /* ProfileTabView.swift in Sources */,
+				AA010001AAAAAAAA00000012 /* PublicProfile.swift in Sources */,
+				AA010001AAAAAAAA00000013 /* CachedAsyncImage.swift in Sources */,
+				AA010001AAAAAAAA00000014 /* ChatView.swift in Sources */,
+				AA010001AAAAAAAA00000015 /* ChatViewModel.swift in Sources */,
+				AA010001AAAAAAAA00000016 /* DiscoverProfilesParams.swift in Sources */,
+				216D958C2F7CF644007196FB /* DateDebriefView.swift in Sources */,
+				AA010001AAAAAAAA00000017 /* DiscoverView.swift in Sources */,
+				AA010001AAAAAAAA00000018 /* DiscoverViewModel.swift in Sources */,
+				AA010001AAAAAAAA00000019 /* LikesView.swift in Sources */,
+				AA010001AAAAAAAA00000021 /* MatchesTabView.swift in Sources */,
+				AA010001AAAAAAAA00000022 /* MatchesView.swift in Sources */,
+				AA010001AAAAAAAA00000023 /* MatchesViewModel.swift in Sources */,
+				AA010001AAAAAAAA00000024 /* OnboardingAIViewModel.swift in Sources */,
+				AA010001AAAAAAAA00000025 /* UsageLimitService.swift in Sources */,
+				AA010001AAAAAAAA00000026 /* PremiumService.swift in Sources */,
+				AA010001AAAAAAAA00000027 /* DailyRewardService.swift in Sources */,
+				AA010001AAAAAAAA00000028 /* AnalyticsService.swift in Sources */,
+				AA010001AAAAAAAA00000029 /* BoostService.swift in Sources */,
+				AA010001AAAAAAAA00000030 /* SubscriptionView.swift in Sources */,
+				AA010001AAAAAAAA00000031 /* DailyRewardView.swift in Sources */,
+				AA010001AAAAAAAA00000032 /* BoostView.swift in Sources */,
+				AA020001AAAAAAAA00000033 /* ClosureFlowSheet.swift in Sources */,
+				AA020001AAAAAAAA00000034 /* BoundarySettingsSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -366,6 +486,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WIngmanAI/WIngmanAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9QP8X9TLBJ;
@@ -374,26 +495,37 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WIngmanAI/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Bitte Lächeln! Zeig dich für ein kurzen Schnappschuss.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wir benötigen deinen Standort, um dir Profile in deiner Nähe anzuzeigen.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Wir benötigen Zugriff auf die Bilder, die du hochladen möchtest!";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = wingmanapp.de.WIngmanAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPABASE_ANON_KEY = "";
+				"SUPABASE_ANON_KEY[arch=*]" = sb_publishable_xwoO4_rGj3Y8Xp2VNsnX_w_727cNS2c;
+				SUPABASE_URL = "https://axkxzozfwecdyulnvwmx.supabase.co";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -401,7 +533,8 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.2;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+				XROS_DEPLOYMENT_TARGET = 2.6;
 			};
 			name = Debug;
 		};
@@ -410,6 +543,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WIngmanAI/WIngmanAIRelease.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9QP8X9TLBJ;
@@ -418,26 +554,41 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WIngmanAI/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Bitte Lächeln! Zeig dich für ein kurzen Schnappschuss.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wir benötigen deinen Standort, um dir Profile in deiner Nähe anzuzeigen.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Wir benötigen Zugriff auf die Bilder, die du hochladen möchtest!";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = wingmanapp.de.WIngmanAI;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = wingmanapp.de.WIngmanAI;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=xros*]" = wingmanapp.de.WIngmanAI.uniquversion001vision;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPABASE_ANON_KEY = "";
+				"SUPABASE_ANON_KEY[arch=*]" = sb_publishable_xwoO4_rGj3Y8Xp2VNsnX_w_727cNS2c;
+				SUPABASE_URL = "https://axkxzozfwecdyulnvwmx.supabase.co";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -445,14 +596,15 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.2;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+				XROS_DEPLOYMENT_TARGET = 2.6;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		210F8C182F2E8A1F000C4B92 /* Build configuration list for PBXProject "WIngmanAI" */ = {
+		210F8C182F2E8A1F000C4B92 /* Build configuration list for PBXProject "WingmanAI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				210F8C262F2E8A20000C4B92 /* Debug */,

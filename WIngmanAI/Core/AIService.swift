@@ -12,7 +12,16 @@ final class AIService {
     static let shared = AIService()
     private init() {}
 
+    // No longer using static accessToken, we fetch dynamically to prevent stale token 401s
+    // static var accessToken: String?
+
     private func callFunction(_ name: String, body: Data) async throws -> Data {
+        // Dynamically get the current session so we NEVER use a stale token
+        let session = try? await SupabaseClientProvider.shared.client.auth.session
+        let token = session?.accessToken
+        
+        print("[AIService] callFunction=\(name) token=\(token == nil ? "NIL ❌" : "OK ✅ (\(token!.prefix(20))...)")")
+
         let url = SupabaseClientProvider.shared.supabaseURL
             .appendingPathComponent("functions/v1/\(name)")
 
@@ -21,7 +30,7 @@ final class AIService {
         req.httpBody = body
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue(SupabaseClientProvider.shared.anonKey, forHTTPHeaderField: "apikey")
-        if let token = SupabaseClientProvider.shared.client.auth.currentSession?.accessToken {
+        if let token {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
@@ -57,6 +66,48 @@ final class AIService {
         let body = try JSONEncoder.ai.encode(input)
         let data = try await callFunction("ai-wingman", body: body)
         return try JSONDecoder().decode(WingmanResponse.self, from: data)
+    }
+
+    // MARK: - New Router API
+
+    /// Send any task through the unified ai-router pipeline.
+    /// Returns structured WingmanRouterResponse with variants, confidence, memory candidates etc.
+    func route(_ request: WingmanRouterRequest) async throws -> WingmanRouterResponse {
+        let body = try JSONEncoder.ai.encode(request)
+        let data = try await callFunction("ai-router", body: body)
+        return try JSONDecoder().decode(WingmanRouterResponse.self, from: data)
+    }
+
+    /// Convenience: message suggestion for a chat
+    func suggestMessage(
+        conversationId: String,
+        chatHistory: [WingmanMessage],
+        matchProfile: WingmanMatchProfile? = nil,
+        screenContext: String? = nil
+    ) async throws -> WingmanRouterResponse {
+        let req = WingmanRouterRequest(
+            taskType: "message_suggestion",
+            conversationId: conversationId,
+            screenContext: screenContext,
+            chatHistory: chatHistory,
+            matchProfile: matchProfile
+        )
+        return try await route(req)
+    }
+
+    /// Convenience: analyse a reply / conversation
+    func analyseConversation(
+        conversationId: String,
+        chatHistory: [WingmanMessage],
+        matchProfile: WingmanMatchProfile? = nil
+    ) async throws -> WingmanRouterResponse {
+        let req = WingmanRouterRequest(
+            taskType: "reply_analysis",
+            conversationId: conversationId,
+            chatHistory: chatHistory,
+            matchProfile: matchProfile
+        )
+        return try await route(req)
     }
 }
 
@@ -191,12 +242,13 @@ struct BioInput: Codable {
     var adjustment: Adjustment?
 
     enum Tone: String, Codable, CaseIterable {
-        case playful, witty, direct, warm, serious
+        case playful, witty, direct, warm, serious, authentic
     }
 
     enum BioLength: String, Codable, CaseIterable {
-        case short   // 1–2 lines
-        case medium  // 3–5 lines
+        case short   // 1–2 sentences
+        case medium  // 3–4 sentences
+        case long    // 5–7 sentences
     }
 
     enum Adjustment: String, Codable {
@@ -257,6 +309,96 @@ struct HooksInput: Codable {
     // Control
     var maxHooks: Int
     var maxVibes: Int
+}
+
+// MARK: - Router Models
+
+struct WingmanRouterRequest: Codable {
+    let taskType: String
+    var conversationId: String?
+    var screenContext: String?
+    var userInput: String?
+    var userGoal: String?
+    var chatHistory: [WingmanMessage]?
+    var matchProfile: WingmanMatchProfile?
+    var tone: String?
+    var length: String?
+    var interests: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case taskType       = "task_type"
+        case conversationId = "conversation_id"
+        case screenContext  = "screen_context"
+        case userInput      = "user_input"
+        case userGoal       = "user_goal"
+        case chatHistory    = "chat_history"
+        case matchProfile   = "match_profile"
+        case tone, length, interests
+    }
+}
+
+struct WingmanMatchProfile: Codable {
+    var name: String?
+    var age: Int?
+    var bio: String?
+    var interests: [String]?
+    var city: String?
+}
+
+struct WingmanRouterResponse: Codable {
+    // Message suggestions
+    var variants: [WingmanVariant]?
+    var bestVariantIndex: Int?
+    var confidence: Double?
+    var riskFlags: [String]?
+    var memoryCandidates: [String]?
+    var summary: String?
+    var taskType: String?
+    var uiHints: WingmanUIHints?
+    var eventId: String?
+
+    // Reply analysis
+    var interestScore: Double?
+    var interestLabel: String?
+    var redFlags: [String]?
+    var mistakesByUser: [String]?
+    var recommendedNextMove: String?
+
+    // Bio generation (router also handles bio)
+    var bios: [String]?
+    var bestIndex: Int?
+
+    // Coaching
+    var feedback: String?
+    var actionItems: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case variants, confidence, summary, bios, feedback
+        case bestVariantIndex   = "best_variant_index"
+        case riskFlags          = "risk_flags"
+        case memoryCandidates   = "memory_candidates"
+        case taskType           = "task_type"
+        case uiHints            = "ui_hints"
+        case eventId            = "event_id"
+        case interestScore      = "interest_score"
+        case interestLabel      = "interest_label"
+        case redFlags           = "red_flags"
+        case mistakesByUser     = "mistakes_by_user"
+        case recommendedNextMove = "recommended_next_move"
+        case bestIndex          = "best_index"
+        case actionItems        = "action_items"
+    }
+}
+
+struct WingmanVariant: Codable, Identifiable {
+    var id: String { label }
+    let label: String  // safe | playful | bold
+    let text: String
+}
+
+struct WingmanUIHints: Codable {
+    var tone: String?
+    var length: String?
 }
 
 // MARK: - JSON helpers

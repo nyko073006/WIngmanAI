@@ -7,12 +7,19 @@ import PostgREST
 final class LocationRefreshService {
     static let shared = LocationRefreshService()
     private let manager = CLLocationManager()
+    private let cooldownSeconds: TimeInterval = 30 * 60
+    private let lastRefreshKey = "location_last_refresh_at"
     private init() {}
 
     func refreshIfAuthorized(userId: UUID) async {
         guard #available(iOS 17.0, *) else { return }
         let status = manager.authorizationStatus
         guard status == .authorizedWhenInUse || status == .authorizedAlways else { return }
+
+        let lastRefresh = UserDefaults.standard.double(forKey: lastRefreshKey)
+        let elapsed = Date().timeIntervalSince1970 - lastRefresh
+        guard elapsed >= cooldownSeconds else { return }
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastRefreshKey)
 
         do {
             for try await update in CLLocationUpdate.liveUpdates() {

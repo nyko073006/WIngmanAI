@@ -24,7 +24,6 @@ CREATE OR REPLACE FUNCTION public.discover_profiles_v2(
   p_limit        int     DEFAULT 40
 )
 RETURNS TABLE (
-  id                uuid,
   user_id           uuid,
   display_name      text,
   bio               text,
@@ -43,7 +42,6 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT
-    p.id,
     p.user_id,
     p.display_name,
     p.bio,
@@ -55,9 +53,9 @@ AS $$
     (SELECT ph.url FROM photos ph WHERE ph.user_id = p.user_id AND ph.is_primary = true LIMIT 1) AS primary_photo_url,
     -- Haversine distance in km
     (2 * 6371 * asin(sqrt(
-      power(sin(radians((p.lat - p_lat) / 2)), 2) +
-      cos(radians(p_lat)) * cos(radians(p.lat)) *
-      power(sin(radians((p.lng - p_lng) / 2)), 2)
+      power(sin(radians((p.location_lat - p_lat) / 2)), 2) +
+      cos(radians(p_lat)) * cos(radians(p.location_lat)) *
+      power(sin(radians((p.location_lng - p_lng) / 2)), 2)
     ))) AS distance_km,
     (p.boost_active_until IS NOT NULL AND p.boost_active_until > now()) AS boost_active
   FROM profiles p
@@ -76,21 +74,20 @@ AS $$
     AND (p_cursor IS NULL OR p.created_at < p_cursor)
     AND (p_gender IS NULL OR p.gender = ANY(p_gender))
     AND (p_looking_for IS NULL OR p.looking_for = p_looking_for)
-    AND (p.lat IS NOT NULL AND p.lng IS NOT NULL)
+    AND (p.location_lat IS NOT NULL AND p.location_lng IS NOT NULL)
     AND (2 * 6371 * asin(sqrt(
-      power(sin(radians((p.lat - p_lat) / 2)), 2) +
-      cos(radians(p_lat)) * cos(radians(p.lat)) *
-      power(sin(radians((p.lng - p_lng) / 2)), 2)
+      power(sin(radians((p.location_lat - p_lat) / 2)), 2) +
+      cos(radians(p_lat)) * cos(radians(p.location_lat)) *
+      power(sin(radians((p.location_lng - p_lng) / 2)), 2)
     ))) <= p_distance_km
     AND (
       p.birthdate IS NULL
       OR (
-        date_part('year', age(to_date(p.birthdate, 'YYYY-MM-DD'))) >= p_age_min
-        AND date_part('year', age(to_date(p.birthdate, 'YYYY-MM-DD'))) <= p_age_max
+        date_part('year', age(p.birthdate::date)) >= p_age_min
+        AND date_part('year', age(p.birthdate::date)) <= p_age_max
       )
     )
   ORDER BY
-    -- Boosted profiles first
     (p.boost_active_until IS NOT NULL AND p.boost_active_until > now()) DESC,
     p.created_at DESC
   LIMIT p_limit;

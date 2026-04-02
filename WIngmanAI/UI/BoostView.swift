@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Auth 
 
 struct BoostView: View {
     @EnvironmentObject var auth: AppAuthService

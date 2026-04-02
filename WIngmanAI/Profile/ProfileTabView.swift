@@ -43,6 +43,9 @@ final class ProfileViewModel: ObservableObject {
     @Published var interestedInArr: [String] = []
     @Published var lookingForStr: String? = nil
 
+    // Boundaries
+    @Published var boundaries = BoundaryPreferences()
+
     // Photos
     @Published var photos: [PhotoRow] = []
 
@@ -85,6 +88,7 @@ final class ProfileViewModel: ObservableObject {
             let age_max: Int?
             let interested_in_arr: [String]?
             let looking_for: String?
+            let boundaries: BoundaryPreferences?
         }
 
         struct DBPhotoRow: Decodable {
@@ -98,7 +102,7 @@ final class ProfileViewModel: ObservableObject {
         do {
             let rows: [ProfileRow] = try await client
                 .from("profiles")
-                .select("display_name,bio,city,birthdate,interests,first_date_vibes,hooks,distance_km,age_min,age_max,interested_in_arr,looking_for")
+                .select("display_name,bio,city,birthdate,interests,first_date_vibes,hooks,distance_km,age_min,age_max,interested_in_arr,looking_for,boundaries")
                 .eq("user_id", value: userId.uuidString)
                 .limit(1)
                 .execute()
@@ -117,6 +121,7 @@ final class ProfileViewModel: ObservableObject {
                 ageMax = r.age_max ?? 45
                 interestedInArr = r.interested_in_arr ?? []
                 lookingForStr = r.looking_for
+                boundaries = r.boundaries ?? BoundaryPreferences()
             }
 
             let dbPhotos: [DBPhotoRow] = try await client
@@ -229,6 +234,25 @@ final class ProfileViewModel: ObservableObject {
             self.ageMax = ageMax
             self.interestedInArr = interestedInArr
             self.lookingForStr = lookingFor
+        } catch {
+            errorText = error.localizedDescription
+        }
+    }
+
+    func saveBoundaries(userId: UUID, boundaries: BoundaryPreferences) async {
+        isSaving = true
+        defer { isSaving = false }
+        struct BoundaryUpdate: Encodable {
+            let boundaries: BoundaryPreferences
+            let updated_at: String
+        }
+        do {
+            _ = try await client
+                .from("profiles")
+                .update(BoundaryUpdate(boundaries: boundaries, updated_at: ISO8601DateFormatter().string(from: Date())))
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+            self.boundaries = boundaries
         } catch {
             errorText = error.localizedDescription
         }
@@ -387,6 +411,7 @@ struct ProfileTabView: View {
     @State private var showSubscription = false
     @State private var showEditSheet = false
     @State private var showDiscoverySettings = false
+    @State private var showBoundarySettings = false
     @State private var showProfilePreview = false
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var isSigningOut = false
@@ -427,6 +452,28 @@ struct ProfileTabView: View {
         if vm.firstDateVibes.count < 2 { return "Füge First-Date Vibes hinzu" }
         if vm.hooks.isEmpty { return "Füge Gesprächsstarter hinzu" }
         return "Profil ist vollständig!"
+    }
+
+    private func boundaryChipLabels(_ b: BoundaryPreferences) -> [String] {
+        var chips: [String] = []
+        switch b.relationshipGoal {
+        case "serious": chips.append("💍 Ernsthaft")
+        case "casual": chips.append("🌊 Casual")
+        case "friendship": chips.append("🤝 Freundschaft")
+        case "open": chips.append("✨ Offen")
+        default: break
+        }
+        for d in b.dealbreakers.prefix(2) {
+            switch d {
+            case "smoking": chips.append("🚭")
+            case "longdistance": chips.append("📍")
+            case "kids": chips.append("👶")
+            case "alcohol": chips.append("🍺")
+            case "pets": chips.append("🐾")
+            default: break
+            }
+        }
+        return chips
     }
 
     var body: some View {
@@ -489,6 +536,13 @@ struct ProfileTabView: View {
         .sheet(isPresented: $showDiscoverySettings) {
             if let userId = auth.session?.user.id {
                 DiscoverySettingsSheet(vm: vm, userId: userId, brand: brand)
+            }
+        }
+        .sheet(isPresented: $showBoundarySettings) {
+            if let userId = auth.session?.user.id {
+                BoundarySettingsSheet(userId: userId, current: vm.boundaries) { saved in
+                    vm.boundaries = saved
+                }
             }
         }
         .sheet(isPresented: $showSubscription) {
@@ -667,6 +721,48 @@ struct ProfileTabView: View {
                 }
 
                 // Hooks
+
+                // Boundaries
+                section("Grenzen & Präferenzen") {
+                    Button {
+                        showBoundarySettings = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.teal.opacity(0.12))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: "hand.raised.fill")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.teal)
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                if vm.boundaries.relationshipGoal == nil && vm.boundaries.dealbreakers.isEmpty {
+                                    Text("Grenzen festlegen")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text("Zeig, was du suchst – weniger Missverständnisse")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("Grenzen & Präferenzen")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    let chips = boundaryChipLabels(vm.boundaries)
+                                    Text(chips.isEmpty ? "Festgelegt" : chips.prefix(2).joined(separator: " · "))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 // Subscription
                 section("Wingman Pro") {
@@ -873,10 +969,9 @@ private struct EditProfileSheet: View {
     @State private var isGeneratingAI: Bool = false
 
     private let interestOptions = [
-        "Reisen", "Musik", "Filme", "Fitness", "Lesen", "Kochen",
-        "Fotografie", "Kunst", "Gaming", "Tanzen", "Wandern", "Yoga",
-        "Kaffee", "Foodie", "Hunde", "Katzen", "Strand", "Berge",
-        "Sport", "Fashion", "Technik", "Meditation", "Konzerte", "Festivals"
+        "Reisen", "Fitness", "Kochen", "Musik", "Filme",
+        "Natur", "Kaffee", "Bücher", "Tanzen", "Wandern",
+        "Wein", "Yoga", "Reiten", "Gaming", "Kunst"
     ]
     private let vibeOptions = [
         "Kaffee & ehrliche Gespräche", "Abendspaziergang mit Snacks",
@@ -1371,6 +1466,7 @@ final class OtherUserProfileViewModel: ObservableObject {
     @Published var hooks: [String] = []
     @Published var photoUrls: [String] = []
     @Published var lastActiveAt: Date?
+    @Published var boundaries = BoundaryPreferences()
 
     private var client: SupabaseClient { SupabaseClientProvider.shared.client }
 
@@ -1410,6 +1506,7 @@ final class OtherUserProfileViewModel: ObservableObject {
             let first_date_vibes: [String]?
             let hooks: [String]?
             let last_active_at: Date?
+            let boundaries: BoundaryPreferences?
         }
         struct DBPhotoRow: Decodable, Sendable {
             let url: String; let is_primary: Bool?; let sort_order: Int?
@@ -1418,7 +1515,7 @@ final class OtherUserProfileViewModel: ObservableObject {
         do {
             async let rowsTask: [ProfileRow] = client
                 .from("profiles")
-                .select("display_name,bio,city,birthdate,interests,first_date_vibes,hooks,last_active_at")
+                .select("display_name,bio,city,birthdate,interests,first_date_vibes,hooks,last_active_at,boundaries")
                 .eq("user_id", value: userId.uuidString)
                 .limit(1).execute().value
 
@@ -1439,6 +1536,7 @@ final class OtherUserProfileViewModel: ObservableObject {
                 firstDateVibes = r.first_date_vibes ?? []
                 hooks = r.hooks ?? []
                 lastActiveAt = r.last_active_at
+                boundaries = r.boundaries ?? BoundaryPreferences()
             }
 
             let sorted = dbPhotos.sorted { a, b in
@@ -1667,10 +1765,45 @@ struct OtherUserProfileSheet: View {
                     FlowChips(items: vm.firstDateVibes, brand: brand.opacity(0.7))
                 }
             }
+
+            let boundaryChips = makeBoundaryChips(vm.boundaries)
+            if !boundaryChips.isEmpty {
+                contentSection("Grenzen & Präferenzen") {
+                    FlowChips(items: boundaryChips, brand: Color(.systemTeal).opacity(0.8))
+                }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 24)
         .padding(.bottom, 48)
+    }
+
+    private func makeBoundaryChips(_ b: BoundaryPreferences) -> [String] {
+        var chips: [String] = []
+        switch b.relationshipGoal {
+        case "serious":    chips.append("💍 Ernsthafte Beziehung")
+        case "casual":     chips.append("🌊 Casual & offen")
+        case "friendship": chips.append("🤝 Freundschaft first")
+        case "open":       chips.append("✨ Mal schauen")
+        default: break
+        }
+        switch b.commStyle {
+        case "texter":   chips.append("💬 Viel schreiben")
+        case "balanced": chips.append("⚖️ Ausgewogen")
+        case "caller":   chips.append("📞 Lieber reden")
+        default: break
+        }
+        for d in b.dealbreakers {
+            switch d {
+            case "smoking":      chips.append("🚭 Kein Rauchen")
+            case "longdistance": chips.append("📍 Keine Fernbeziehung")
+            case "kids":         chips.append("👶 Kinder no-go")
+            case "alcohol":      chips.append("🍺 Kein Alkohol")
+            case "pets":         chips.append("🐾 Keine Haustiere")
+            default: break
+            }
+        }
+        return chips
     }
 
     private func contentSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {

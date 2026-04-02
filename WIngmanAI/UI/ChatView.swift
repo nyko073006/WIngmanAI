@@ -38,16 +38,31 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if vm.isOffline {
+                HStack(spacing: 6) {
+                    Image(systemName: "wifi.slash")
+                        .font(.caption)
+                    Text("Offline – Nachrichten werden gesendet, sobald du wieder verbunden bist.")
+                        .font(.caption)
+                        .lineLimit(2)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(Color.orange)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
             content
-            if lastMessageIsFromMe || vm.isLoadingWingSuggestions || !vm.wingSuggestions.isEmpty {
+            if lastMessageIsFromMe || vm.isLoadingWingSuggestions || vm.wingmanResponse != nil {
                 Divider()
                 WingmanBar(
-                    suggestions: vm.wingSuggestions,
+                    response: vm.wingmanResponse,
                     isLoading: vm.isLoadingWingSuggestions,
                     waitingForReply: lastMessageIsFromMe,
                     onTap: { s in
                         draft = s
-                        vm.wingSuggestions = []
+                        vm.wingmanResponse = nil
                         AnalyticsService.shared.track(.wingmanSuggestionTapped)
                     },
                     onGenerateMore: {
@@ -63,6 +78,7 @@ struct ChatView: View {
             Divider()
             composer
         }
+        .animation(.easeInOut(duration: 0.25), value: vm.isOffline)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -160,18 +176,7 @@ struct ChatView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     OtherUserProfileSheet(userId: otherUserId, isEmbedded: true)
-                    
-                    VStack(spacing: 12) {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                            .font(.system(size: 48))
-                            .foregroundStyle(chatBrand)
-                        Text("Noch keine Nachrichten")
-                            .font(.headline)
-                        Text("Sag hallo!")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 40)
+                    icebreakerSection
                 }
             }
         } else {
@@ -249,6 +254,63 @@ struct ChatView: View {
                 }
             }
         }
+    }
+
+    private var icebreakerSection: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 28))
+                    .foregroundStyle(chatBrand)
+                Text("Noch keine Nachrichten")
+                    .font(.headline)
+                Text("Wingman hat ein paar Ideen 💡")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(icebreakers(for: otherName), id: \.self) { msg in
+                    Button {
+                        draft = msg
+                        isTextFocused = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkle")
+                                .font(.caption)
+                                .foregroundStyle(chatBrand)
+                            Text(msg)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                            Image(systemName: "arrow.up.circle")
+                                .foregroundStyle(chatBrand.opacity(0.6))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(chatBrand.opacity(0.12), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text("AI Co-Pilot · Tippe auf eine Idee, um sie anzupassen")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 32)
+    }
+
+    private func icebreakers(for name: String) -> [String] {
+        let first = name.components(separatedBy: " ").first ?? name
+        return [
+            LocalIcebreakerGenerator.make(name: first, city: nil, bio: "", interests: []),
+            "Hey \(first) 😄 Was war dein letztes Abenteuer – egal ob groß oder klein?",
+            "Hey \(first) ✨ Wenn du morgen irgendwo auf der Welt aufwachen könntest: Wo wäre das?"
+        ]
     }
 
     private var composer: some View {
@@ -362,28 +424,41 @@ struct ChatView: View {
 }
 
 private struct WingmanBar: View {
-    let suggestions: [String]
+    let response: WingmanRouterResponse?
     let isLoading: Bool
     var waitingForReply: Bool = false
     let onTap: (String) -> Void
     var onGenerateMore: (() -> Void)? = nil
 
+    private struct VariantStyle {
+        let label: String
+        let emoji: String
+        let color: Color
+    }
+
+    private let variantStyles: [String: VariantStyle] = [
+        "safe":    VariantStyle(label: "Safe",    emoji: "🟢", color: Color(.systemGreen)),
+        "playful": VariantStyle(label: "Playful", emoji: "😄", color: chatBrand),
+        "bold":    VariantStyle(label: "Bold",    emoji: "🔥", color: Color(.systemOrange)),
+    ]
+
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             if waitingForReply {
                 HStack(spacing: 6) {
                     Image(systemName: "hourglass")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text("Warte auf eine Antwort…")
+                    Text("Warte auf Antwort…")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(Color(.systemGray6), in: Capsule())
+                .frame(maxWidth: .infinity)
             } else if isLoading {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ProgressView().scaleEffect(0.75)
                     Text("Wingman denkt…")
                         .font(.caption)
@@ -392,45 +467,112 @@ private struct WingmanBar: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(Color(.systemGray6), in: Capsule())
-            } else {
-                ForEach(suggestions, id: \.self) { s in
-                    Button { onTap(s) } label: {
-                        HStack(spacing: 10) {
-                            Text(s)
-                                .font(.subheadline)
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(nil)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(chatBrand.opacity(0.12), in: RoundedRectangle(cornerRadius: 18))
-                        .foregroundStyle(chatBrand)
-                    }
-                    .buttonStyle(.plain)
-                }
-                
-                if let onGenerateMore {
-                    Button { onGenerateMore() } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "sparkles")
-                            Text("Neue generieren")
-                            Text("(-1 Credit)")
+                .frame(maxWidth: .infinity)
+            } else if let variants = response?.variants, !variants.isEmpty {
+                // Header row
+                HStack {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(chatBrand)
+                        Text("Wingman")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(chatBrand)
+                        if let confidence = response?.confidence {
+                            Text("· \(Int(confidence * 100))%")
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(chatBrand)
-                        .padding(.top, 4)
-                        .padding(.bottom, 2)
                     }
-                    .buttonStyle(.plain)
+                    Spacer()
+                    if let onGenerateMore {
+                        Button { onGenerateMore() } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.clockwise")
+                                Text("-1 Credit")
+                            }
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Best variant highlighted
+                let bestIdx = response?.bestVariantIndex ?? 0
+                let bestVariant = variants[min(bestIdx, variants.count - 1)]
+                let bestStyle = variantStyles[bestVariant.label] ?? VariantStyle(label: bestVariant.label, emoji: "✨", color: chatBrand)
+
+                Button { onTap(bestVariant.text) } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Text(bestStyle.emoji).font(.caption)
+                                Text(bestStyle.label)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(bestStyle.color)
+                                Text("· Empfohlen")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(bestVariant.text)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(bestStyle.color)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(bestStyle.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(bestStyle.color.opacity(0.2), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                // Other variants as compact chips
+                let otherVariants = variants.enumerated().filter { $0.offset != bestIdx }
+                if !otherVariants.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(otherVariants, id: \.element.id) { _, v in
+                            let style = variantStyles[v.label] ?? VariantStyle(label: v.label, emoji: "💬", color: .secondary)
+                            Button { onTap(v.text) } label: {
+                                HStack(spacing: 5) {
+                                    Text(style.emoji).font(.caption)
+                                    Text(style.label)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(style.color)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(style.color.opacity(0.08), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                    }
+                }
+
+                // Risk flags (if any)
+                if let flags = response?.riskFlags, !flags.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption2)
+                        Text(flags.joined(separator: ", "))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
     }
 }
 
