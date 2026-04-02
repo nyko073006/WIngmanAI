@@ -110,9 +110,20 @@ Deno.serve(async (req) => {
       clearTimeout(timeout);
     }
 
-    const output_text = r.choices[0].message.content ?? "{}";
+    const raw = r.choices[0].message.content ?? "{}";
+    const parsed = JSON.parse(raw);
 
-    return new Response(output_text, {
+    // Normalise to { bios: string[] } regardless of what GPT returned
+    let bios: string[] = [];
+    if (Array.isArray(parsed.bios)) {
+      bios = parsed.bios.map(String);
+    } else {
+      // GPT sometimes returns { bio_1, bio_2, bio_3 } or { bio: [...] } etc.
+      const values = Object.values(parsed).filter((v) => typeof v === "string");
+      bios = values.length > 0 ? values as string[] : [raw];
+    }
+
+    return new Response(JSON.stringify({ bios }), {
       headers: { "content-type": "application/json" },
     });
   } catch (e) {
