@@ -31,19 +31,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 2. Rate limit (tier limits enforced in DB function) ──────────────
-    const { data: allowed, error: rpcError } = await supabase.rpc(
-      "consume_ai_credit",
-      { p_user_id: user.id },
-    );
-
-    if (rpcError) { console.warn("consume_ai_credit RPC error:", rpcError.message); }
-    if (!allowed) {
-      return new Response(
-        JSON.stringify({ error: "Daily AI limit reached. Upgrade to get more." }),
-        { status: 429, headers: { "content-type": "application/json" } },
-      );
-    }
+    // ── 2. Rate limit (disabled during dev — re-enable before launch) ──────
+    // TODO: uncomment before App Store launch
+    // await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
 
     // ── 3. AI call ────────────────────────────────────────────────────────
     const input = await req.json();
