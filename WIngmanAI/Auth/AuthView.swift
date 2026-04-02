@@ -160,7 +160,7 @@ struct AuthView: View {
                         }
                     )
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 52)
+                    .frame(height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.horizontal, 24)
 
@@ -169,7 +169,7 @@ struct AuthView: View {
                         Task { await auth.signInWithGoogle() }
                     } label: {
                         GoogleSignInLabel()
-                            .frame(height: 52)
+                            .frame(height: 44)
                     }
                     .padding(.horizontal, 24)
 
@@ -421,7 +421,7 @@ private struct ConsentSheet: View {
                     .font(.system(.body, design: .rounded).weight(.bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 17)
+                    .padding(.vertical, 13)
                     .background(
                         allRequired
                             ? AnyShapeStyle(LinearGradient(colors: [brand, brandAlt], startPoint: .leading, endPoint: .trailing))
@@ -477,7 +477,7 @@ private struct ConsentSheet: View {
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.vertical, 11)
         }
         .buttonStyle(.plain)
     }
@@ -512,7 +512,7 @@ private struct ConsentSheet: View {
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.vertical, 11)
         }
         .buttonStyle(.plain)
     }
@@ -591,7 +591,7 @@ struct WelcomeView: View {
                         }
                     )
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 52)
+                    .frame(height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
 
                     // Google Sign In
@@ -599,7 +599,7 @@ struct WelcomeView: View {
                         Task { await auth.signInWithGoogle() }
                     } label: {
                         GoogleSignInLabel()
-                            .frame(height: 52)
+                            .frame(height: 44)
                             .clipShape(RoundedRectangle(cornerRadius: 18))
                     }
 
@@ -617,7 +617,7 @@ struct WelcomeView: View {
                             .font(.system(.body, design: .rounded).weight(.bold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 17)
+                            .padding(.vertical, 13)
                             .background(
                                 LinearGradient(colors: [brand, brandAlt],
                                                startPoint: .leading, endPoint: .trailing)
@@ -635,7 +635,7 @@ struct WelcomeView: View {
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
                             .foregroundStyle(brand)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .padding(.vertical, 11)
                             .background(brand.opacity(0.08))
                             .clipShape(RoundedRectangle(cornerRadius: 18))
                     }
@@ -687,7 +687,7 @@ struct GoogleSignInLabel: View {
                 .foregroundStyle(colorScheme == .dark ? .white : Color(.label))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
+        .padding(.vertical, 11)
         .background(
             colorScheme == .dark
                 ? Color(.systemGray5)
