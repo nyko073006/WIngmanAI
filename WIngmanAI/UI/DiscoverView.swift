@@ -383,94 +383,109 @@ struct DiscoverView: View {
                 HStack(spacing: 0) {
                     Spacer()
 
-                    // Nope
-                    Button {
-                        Task {
-                            hapticImpact(.light)
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                                cardOffset = CGSize(width: -900, height: 0)
+                    // Nein
+                    VStack(spacing: 5) {
+                        Button {
+                            Task {
+                                hapticImpact(.light)
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                    cardOffset = CGSize(width: -900, height: 0)
+                                }
+                                if !swipeHintShown { swipeHintShown = true }
+                                await swipe(isLike: false)
                             }
-                            if !swipeHintShown { swipeHintShown = true }
-                            await swipe(isLike: false)
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(.systemGray5))
+                                    .shadow(color: Color.black.opacity(0.08), radius: 8, y: 3)
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(Color(.systemGray))
+                            }
+                            .frame(width: 62, height: 62)
                         }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(Color(.systemGray5))
-                                .shadow(color: Color.black.opacity(0.08), radius: 8, y: 3)
-                            Image(systemName: "xmark")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(Color(.systemGray))
-                        }
-                        .frame(width: 62, height: 62)
+                        .accessibilityLabel("Nein")
+                        .disabled(vm.isSwiping || vm.isLoading)
+                        Text("Nein")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color(.systemGray))
                     }
-                    .accessibilityLabel("Nope")
-                    .disabled(vm.isSwiping || vm.isLoading)
 
                     Spacer()
 
-                    // Superlike (center)
-                    Button {
-                        Task {
-                            hapticImpact(.medium)
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                                cardOffset = CGSize(width: 0, height: -900)
+                    // Super Like
+                    VStack(spacing: 5) {
+                        Button {
+                            Task {
+                                hapticImpact(.medium)
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                    cardOffset = CGSize(width: 0, height: -900)
+                                }
+                                if !swipeHintShown { swipeHintShown = true }
+                                await swipe(isLike: true)
                             }
-                            if !swipeHintShown { swipeHintShown = true }
-                            await swipe(isLike: true)
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(red: 0.55, green: 0.2, blue: 0.95),
+                                                     Color(red: 0.72, green: 0.28, blue: 1.0)],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing)
+                                    )
+                                    .shadow(color: Color.purple.opacity(0.35), radius: 12, y: 5)
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                            .frame(width: 54, height: 54)
                         }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(red: 0.55, green: 0.2, blue: 0.95),
-                                                 Color(red: 0.72, green: 0.28, blue: 1.0)],
-                                        startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                                .shadow(color: Color.purple.opacity(0.35), radius: 12, y: 5)
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                        .frame(width: 62, height: 62)
+                        .accessibilityLabel("Super Like")
+                        .disabled(vm.isSwiping || vm.isLoading)
+                        Text("Super")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color(red: 0.6, green: 0.25, blue: 0.95))
                     }
-                    .accessibilityLabel("Superlike")
-                    .disabled(vm.isSwiping || vm.isLoading)
 
                     Spacer()
 
-                    // Like
-                    Button {
-                        Task {
-                            hapticImpact(.medium)
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                                cardOffset = CGSize(width: 900, height: 0)
+                    // Ja / Like
+                    VStack(spacing: 5) {
+                        Button {
+                            Task {
+                                hapticImpact(.medium)
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                    cardOffset = CGSize(width: 900, height: 0)
+                                }
+                                if !swipeHintShown { swipeHintShown = true }
+                                await swipe(isLike: true)
                             }
-                            if !swipeHintShown { swipeHintShown = true }
-                            await swipe(isLike: true)
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(colors: [brandColor, brandColorAlt],
+                                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                                    )
+                                    .shadow(color: brandColor.opacity(0.35), radius: 12, y: 5)
+                                Image(systemName: "heart.fill")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                            .frame(width: 62, height: 62)
                         }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(colors: [brandColor, brandColorAlt],
-                                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                                .shadow(color: brandColor.opacity(0.35), radius: 12, y: 5)
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                        .frame(width: 62, height: 62)
+                        .accessibilityLabel("Like")
+                        .disabled(vm.isSwiping || vm.isLoading)
+                        .symbolEffect(.bounce, value: vm.isSwiping)
+                        Text("Ja")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(brandColor)
                     }
-                    .accessibilityLabel("Like")
-                    .disabled(vm.isSwiping || vm.isLoading)
-                    .symbolEffect(.bounce, value: vm.isSwiping)
 
                     Spacer()
                 }
-                .frame(height: 88)
+                .frame(height: 96)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -605,22 +620,21 @@ struct DiscoverView: View {
     private struct SwipeHintView: View {
         var body: some View {
             HStack(spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.left")
-                    Image(systemName: "hand.draw")
-                    Image(systemName: "chevron.right")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.9))
+                Image(systemName: "hand.draw.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white.opacity(0.9))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Swipe")
-                        .font(.footnote)
-                        .fontWeight(.semibold)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("So funktioniert's")
+                        .font(.footnote.weight(.bold))
                         .foregroundStyle(.white)
-                    Text("Links = Nope · Rechts = Like")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.85))
+                    HStack(spacing: 8) {
+                        Label("Nein", systemImage: "arrow.left")
+                        Label("Ja", systemImage: "arrow.right")
+                        Label("Super", systemImage: "arrow.up")
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.85))
                 }
 
                 Spacer()
@@ -1163,23 +1177,24 @@ private struct ProfileCard: View {
 
                     // Full profile button
                     if let onShowProfile {
-                        HStack {
-                            Spacer()
-                            Button(action: onShowProfile) {
-                                HStack(spacing: 5) {
-                                    Text("Mehr sehen")
-                                    Image(systemName: "chevron.up")
-                                }
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 6)
-                                .background(.white.opacity(0.18), in: Capsule())
-                                .overlay(Capsule().stroke(.white.opacity(0.25), lineWidth: 1))
+                        Button(action: onShowProfile) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "person.crop.rectangle")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text("Vollständiges Profil")
+                                    .font(.caption.weight(.semibold))
+                                Image(systemName: "chevron.up")
+                                    .font(.system(size: 11, weight: .bold))
                             }
-                            .buttonStyle(.plain)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(.white.opacity(0.20), in: Capsule())
+                            .overlay(Capsule().stroke(.white.opacity(0.30), lineWidth: 1))
                         }
-                        .padding(.top, 4)
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 6)
                     }
                 }
                 .padding(.horizontal, 18)

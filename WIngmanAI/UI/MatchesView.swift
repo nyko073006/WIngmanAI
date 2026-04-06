@@ -110,9 +110,13 @@ struct MatchesView: View {
                         Button {
                             viewStyle = (viewStyle == "list") ? "grid" : "list"
                         } label: {
-                            Image(systemName: viewStyle == "list" ? "square.grid.2x2" : "list.bullet")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: 4) {
+                                Image(systemName: viewStyle == "list" ? "square.grid.2x2" : "list.bullet")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text(viewStyle == "list" ? "Raster" : "Liste")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }
