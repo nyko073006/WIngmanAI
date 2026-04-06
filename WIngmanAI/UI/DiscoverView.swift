@@ -34,6 +34,8 @@ struct DiscoverView: View {
     @State private var pendingChatMatchId: UUID? = nil
     @State private var pendingChatOtherName: String = ""
     @State private var pendingChatOtherUserId: UUID? = nil
+    @State private var pendingHookDraft: String = ""
+    @State private var pendingChatInitialDraft: String = ""
     @State private var profileSheetUser: IdentifiableUUID? = nil
     @State private var blockAlertTarget: IdentifiableUUID? = nil
     @State private var reportTarget: IdentifiableUUID? = nil
@@ -117,7 +119,8 @@ struct DiscoverView: View {
                     )
                 ) {
                     if let id = pendingChatMatchId, let otherUserId = pendingChatOtherUserId {
-                        ChatView(matchId: id, otherName: pendingChatOtherName, otherUserId: otherUserId)
+                        ChatView(matchId: id, otherName: pendingChatOtherName, otherUserId: otherUserId, initialDraft: pendingChatInitialDraft)
+                            .onAppear { pendingChatInitialDraft = "" }
                     } else {
                         EmptyView()
                     }
@@ -138,7 +141,20 @@ struct DiscoverView: View {
             }
         }
         .sheet(item: $profileSheetUser) { wrapper in
-            OtherUserProfileSheet(userId: wrapper.id, distanceKm: wrapper.distanceKm)
+            OtherUserProfileSheet(
+                userId: wrapper.id,
+                distanceKm: wrapper.distanceKm,
+                onRespondToHook: { hook in
+                    pendingHookDraft = hook
+                    profileSheetUser = nil
+                    Task {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                            cardOffset = CGSize(width: 900, height: 0)
+                        }
+                        await swipe(isLike: true)
+                    }
+                }
+            )
         }
         .sheet(isPresented: $showSearchSettings) {
             SearchSettingsSheet(vm: vm, myUserId: auth.session?.user.id)
@@ -204,8 +220,11 @@ struct DiscoverView: View {
                         if let onMatchChat {
                             onMatchChat(item)
                         } else {
-                            pendingChatMatchId   = mid
-                            pendingChatOtherName = user.displayName
+                            pendingChatInitialDraft  = pendingHookDraft
+                            pendingHookDraft         = ""
+                            pendingChatMatchId       = mid
+                            pendingChatOtherName     = user.displayName
+                            pendingChatOtherUserId   = user.id
                         }
                     }
                 },

@@ -1557,6 +1557,7 @@ struct OtherUserProfileSheet: View {
     let userId: UUID
     var distanceKm: Int? = nil
     var isEmbedded: Bool = false
+    var onRespondToHook: ((String) -> Void)? = nil
 
     @StateObject private var vm = OtherUserProfileViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -1751,14 +1752,32 @@ struct OtherUserProfileSheet: View {
                 contentSection("Gesprächsstarter") {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(vm.hooks.prefix(3), id: \.self) { hook in
-                            HStack(spacing: 10) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(brand)
-                                    .frame(width: 3)
-                                Text(hook)
-                                    .font(.subheadline)
-                                    .fixedSize(horizontal: false, vertical: true)
+                            Button {
+                                if let respond = onRespondToHook {
+                                    respond(hook)
+                                    dismiss()
+                                }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(brand)
+                                        .frame(width: 3)
+                                    Text(hook)
+                                        .font(.subheadline)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .foregroundStyle(.primary)
+                                        .multilineTextAlignment(.leading)
+                                    Spacer(minLength: 4)
+                                    if onRespondToHook != nil {
+                                        Image(systemName: "arrowshape.turn.up.left.fill")
+                                            .font(.caption)
+                                            .foregroundStyle(brand.opacity(0.8))
+                                    }
+                                }
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .disabled(onRespondToHook == nil)
                         }
                     }
                 }

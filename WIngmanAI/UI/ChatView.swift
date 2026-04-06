@@ -21,7 +21,14 @@ struct ChatView: View {
     let otherUserId: UUID
 
     @StateObject private var vm = ChatViewModel()
-    @State private var draft: String = ""
+    @State private var draft: String
+
+    init(matchId: UUID, otherName: String, otherUserId: UUID, initialDraft: String = "") {
+        self.matchId = matchId
+        self.otherName = otherName
+        self.otherUserId = otherUserId
+        self._draft = State(initialValue: initialDraft)
+    }
     @FocusState private var isTextFocused: Bool
     @State private var imagePickerItem: PhotosPickerItem? = nil
     @State private var fullscreenImageUrl: URL? = nil
