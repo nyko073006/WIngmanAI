@@ -24,6 +24,7 @@ struct OnboardingView: View {
 
     @State private var step: Step = .basics
     @State private var stepForward: Bool = true
+    @State private var showStepError: Bool = false
     @State private var showCompletion: Bool = false
     @State private var showSnapshotCamera: Bool = false
 
@@ -46,6 +47,10 @@ struct OnboardingView: View {
     // Slide 1: Interests + Keywords
     @State private var selectedInterests: Set<String> = []
     @State private var selectedKeywords: Set<String> = []
+    @State private var customInterestInput: String = ""
+    @State private var customInterests: [String] = []
+    @State private var customKeywordInput: String = ""
+    @State private var customKeywords: [String] = []
     @State private var customVibeInput: String = ""
 
     @State private var isBusy = false
@@ -63,7 +68,8 @@ struct OnboardingView: View {
     @State private var showIntro: Bool = true
 
     // Brand
-    private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
+    private let brand    = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
+    private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
 
     // Limits
     private let minInterestsSelected: Int = 3
@@ -72,9 +78,9 @@ struct OnboardingView: View {
 
     // Options (Base44-ish)
     private let interestOptions: [String] = [
-        "Reisen", "Fitness", "Kochen", "Musik", "Filme",
-        "Natur", "Kaffee", "Bücher", "Tanzen", "Wandern",
-        "Wein", "Yoga", "Reiten", "Gaming", "Kunst"
+        "Reisen", "Fitness", "Kochen", "Musik", "Filme", "Katzen",
+        "Natur", "Kaffee", "Bücher", "Hunde", "Tanzen", "Wandern", "Fotografie",
+        "Wein", "Yoga", "Reiten", "Gaming", "Kunst", "Foodie"
     ]
 
     private let keywordOptions: [String] = [
@@ -223,6 +229,7 @@ struct OnboardingView: View {
             restoreDraft(draft)
         }
         .onChange(of: step) { _, newStep in
+            showStepError = false
             if newStep == .ai, ai.hookOptions.isEmpty {
                 Task { await triggerHooksGeneration() }
             }
@@ -269,8 +276,12 @@ struct OnboardingView: View {
             lookingFor = Set(lf.split(separator: ",").map { String($0) })
         }
         if let interests = draft.interests {
-            selectedInterests = Set(interests.filter { interestOptions.contains($0) })
-            selectedKeywords = Set(interests.filter { keywordOptions.contains($0) })
+            let knownInterests = interests.filter { interestOptions.contains($0) }
+            let knownKeywords  = interests.filter { keywordOptions.contains($0) }
+            let custom         = interests.filter { !interestOptions.contains($0) && !keywordOptions.contains($0) }
+            selectedInterests  = Set(knownInterests).union(Set(custom)) // custom gehört zu Interests
+            customInterests    = custom
+            selectedKeywords   = Set(knownKeywords)
         }
         let age = Calendar.current.dateComponents([.year], from: birthDate, to: Date()).year ?? 0
         if age >= 18 { is18 = true }
@@ -368,27 +379,18 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                // Feature rows
-                VStack(spacing: 10) {
-                    introRow(
-                        icon: "sparkles",
-                        color: brand,
-                        title: "AI schreibt mit dir",
-                        body: "Bio, Hooks & Icebreaker auf Knopfdruck"
-                    )
-                    introRow(
-                        icon: "heart.fill",
-                        color: Color(.sRGB, red: 0xF5/255, green: 0x7C/255, blue: 0x5B/255, opacity: 1),
-                        title: "Smarte Matches",
-                        body: "Kein Zufall – Leute, die wirklich zu dir passen"
-                    )
-                    introRow(
-                        icon: "bolt.fill",
-                        color: Color(.sRGB, red: 1.0, green: 0.70, blue: 0.0, opacity: 1),
-                        title: "In 2 Minuten startklar",
-                        body: "Kurzes Setup, sofort loslegen"
-                    )
+                // Feature rows — grouped card
+                VStack(spacing: 0) {
+                    introRow(icon: "sparkles",    color: brand,    title: "AI schreibt mit dir",    body: "Bio, Hooks & Icebreaker auf Knopfdruck")
+                    Divider().padding(.leading, 74).opacity(0.4)
+                    introRow(icon: "heart.fill",  color: brandAlt, title: "Smarte Matches",          body: "Kein Zufall – Leute, die wirklich zu dir passen")
+                    Divider().padding(.leading, 74).opacity(0.4)
+                    introRow(icon: "bolt.fill",   color: brand,    title: "In 2 Minuten startklar",  body: "Kurzes Setup, sofort loslegen")
                 }
+                .background(Color(.systemBackground).opacity(0.80))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.gray.opacity(0.12), lineWidth: 1))
+                .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
                 .padding(.horizontal, 24)
 
                 Spacer()
@@ -412,7 +414,7 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .background(
-                        LinearGradient(colors: [brand, brand.opacity(0.82)],
+                        LinearGradient(colors: [brand, brandAlt],
                                        startPoint: .leading, endPoint: .trailing)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -430,7 +432,7 @@ struct OnboardingView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(color.opacity(0.12))
-                    .frame(width: 46, height: 46)
+                    .frame(width: 44, height: 44)
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(color)
@@ -444,11 +446,7 @@ struct OnboardingView: View {
             }
             Spacer()
         }
-        .padding(14)
-        .background(Color(.systemBackground).opacity(0.72))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.12), lineWidth: 1))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 3)
+        .padding(16)
     }
 
     @ViewBuilder
@@ -600,7 +598,32 @@ struct OnboardingView: View {
                         }
                     }
                 }
+                ForEach(customInterests, id: \.self) { it in
+                    SoftChip(title: it, selected: true, disabled: false) {
+                        selectedInterests.remove(it)
+                        customInterests.removeAll { $0 == it }
+                    }
+                }
             }
+
+            // Eigenes Interesse eingeben
+            HStack(spacing: 8) {
+                TextField("Eigenes Interesse…", text: $customInterestInput)
+                    .font(.subheadline)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .onSubmit { addCustomInterest() }
+                Button { addCustomInterest() } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(customInterestInput.trimmed.isEmpty ? Color.secondary : brand)
+                }
+                .disabled(customInterestInput.trimmed.isEmpty)
+            }
+            .padding(.top, 4)
+
             Divider().padding(.top, 12)
             // Keywords — optional
             HStack(alignment: .firstTextBaseline) {
@@ -636,7 +659,30 @@ struct OnboardingView: View {
                         }
                     }
                 }
+                ForEach(customKeywords, id: \.self) { kw in
+                    SoftChip(title: kw, selected: true, disabled: false) {
+                        selectedKeywords.remove(kw)
+                        customKeywords.removeAll { $0 == kw }
+                    }
+                }
             }
+
+            HStack(spacing: 8) {
+                TextField("Eigenes Wort…", text: $customKeywordInput)
+                    .font(.subheadline)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .onSubmit { addCustomKeyword() }
+                Button { addCustomKeyword() } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(customKeywordInput.trimmed.isEmpty ? Color.secondary : brand)
+                }
+                .disabled(customKeywordInput.trimmed.isEmpty)
+            }
+            .padding(.top, 4)
 
             if let hint = limitHint {
                 Text(hint).font(.footnote).foregroundStyle(.secondary)
@@ -817,6 +863,51 @@ struct OnboardingView: View {
                     Text("\(photoPreviews.count)/6").font(.footnote).foregroundStyle(.secondary)
                 }
 
+                if photoPreviews.isEmpty {
+                    // Hero empty state
+                    HStack(spacing: 10) {
+                        PhotosPicker(selection: $photoItems, maxSelectionCount: 6, matching: .images) {
+                            VStack(spacing: 10) {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.system(size: 32, weight: .medium))
+                                    .foregroundStyle(brand)
+                                Text("Aus Galerie wählen")
+                                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text("JPG, PNG bis 10 MB")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 150)
+                            .background(Color(.systemGray6).opacity(0.8))
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.18), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button { showSnapshotCamera = true } label: {
+                            VStack(spacing: 10) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 32, weight: .medium))
+                                    .foregroundStyle(brand)
+                                Text("Selfie aufnehmen")
+                                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text("Kamera öffnen")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 150)
+                            .background(brand.opacity(0.07))
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(brand.opacity(0.2), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     ForEach(Array(photoPreviews.enumerated()), id: \.offset) { idx, img in
                         ZStack(alignment: .topTrailing) {
@@ -878,7 +969,7 @@ struct OnboardingView: View {
                         }
                     }
 
-                    if photoPreviews.count < 6 {
+                    if photoPreviews.count > 0 && photoPreviews.count < 6 {
                         PhotosPicker(selection: $photoItems, maxSelectionCount: 6, matching: .images) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 16)
@@ -886,21 +977,7 @@ struct OnboardingView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.18), lineWidth: 1))
                                 VStack(spacing: 8) {
                                     Image(systemName: "plus").font(.title3).foregroundStyle(brand)
-                                    Text("Galerie").font(.footnote).foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(height: 110)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button { showSnapshotCamera = true } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(brand.opacity(0.07))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(brand.opacity(0.2), lineWidth: 1))
-                                VStack(spacing: 8) {
-                                    Image(systemName: "camera.fill").font(.title3).foregroundStyle(brand)
-                                    Text("Selfie").font(.footnote).foregroundStyle(brand)
+                                    Text("Mehr").font(.footnote).foregroundStyle(.secondary)
                                 }
                             }
                             .frame(height: 110)
@@ -932,11 +1009,12 @@ struct OnboardingView: View {
 
     private var bottomBar: some View {
         VStack(spacing: 10) {
-            if let msg = currentStepError {
+            if showStepError, let msg = currentStepError {
                 Text(msg)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0))
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             HStack {
                 if step.rawValue > Step.basics.rawValue {
@@ -961,6 +1039,12 @@ struct OnboardingView: View {
                     brand: brand,
                     isDisabled: !canContinue
                 ) {
+                    guard canContinue else {
+                        withAnimation { showStepError = true }
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                        return
+                    }
+                    showStepError = false
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     if step != .finish {
                         stepForward = true
@@ -994,7 +1078,7 @@ struct OnboardingView: View {
     }
 
     private func tileGrid<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) { content() }
+        VStack(spacing: 8) { content() }
     }
 
 private func softChipWrap<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -1117,6 +1201,43 @@ private func softChipWrap<Content: View>(@ViewBuilder _ content: () -> Content) 
         }
     }
 
+    private func addCustomInterest() {
+        let trimmed = customInterestInput.trimmed
+        guard !trimmed.isEmpty else { return }
+        guard !customInterests.contains(trimmed), !interestOptions.contains(trimmed) else {
+            // bereits vorhanden → einfach auswählen
+            selectedInterests.insert(trimmed)
+            customInterestInput = ""
+            return
+        }
+        guard selectedInterests.count < maxInterestsSelected else {
+            showLimitHint("Max. \(maxInterestsSelected) Interessen")
+            return
+        }
+        customInterests.append(trimmed)
+        selectedInterests.insert(trimmed)
+        customInterestInput = ""
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func addCustomKeyword() {
+        let trimmed = customKeywordInput.trimmed
+        guard !trimmed.isEmpty else { return }
+        guard !customKeywords.contains(trimmed), !keywordOptions.contains(trimmed) else {
+            selectedKeywords.insert(trimmed)
+            customKeywordInput = ""
+            return
+        }
+        guard selectedKeywords.count < keywordsMustSelect else {
+            showLimitHint("Max. \(keywordsMustSelect) Wörter")
+            return
+        }
+        customKeywords.append(trimmed)
+        selectedKeywords.insert(trimmed)
+        customKeywordInput = ""
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     private func addCustomVibe() {
         let vibe = customVibeInput.trimmed
         guard !vibe.isEmpty else { return }
@@ -1185,8 +1306,8 @@ private func softChipWrap<Content: View>(@ViewBuilder _ content: () -> Content) 
     }
 
     private func interestsForStorage() -> [String] {
-        // damit Resume funktioniert, speichern wir Interests + 3 Wörter zusammen
-        Array(selectedInterests) + Array(selectedKeywords)
+        // Interests + Keywords (inkl. custom) zusammen speichern für Resume
+        Array(selectedInterests) + Array(selectedKeywords) + customKeywords.filter { !selectedKeywords.contains($0) }
     }
 
     private func safeGenderRaw() -> String? {
@@ -1876,26 +1997,25 @@ private struct SoftChip: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
                 .padding(.vertical, padV)
                 .padding(.horizontal, padH)
-                .frame(minHeight: 44) // iOS tap target
         }
         .buttonStyle(.plain)
         .contentShape(Capsule())
-        .foregroundStyle(selected ? .white : .primary)
+        .foregroundStyle(selected ? .white : disabled ? Color(.tertiaryLabel) : .primary)
         .background(
             Capsule()
                 .fill(
                     selected
                     ? LinearGradient(
                         colors: [
-                            Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 0.95),
-                            Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 0.78)
+                            Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0),
+                            Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
                         ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .leading,
+                        endPoint: .trailing
                     )
                     : LinearGradient(
                         colors: [Color(.systemGray6), Color(.systemGray5).opacity(0.55)],
@@ -1903,14 +2023,13 @@ private struct SoftChip: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .rotationEffect(.degrees(rot)) // visual only
+                .rotationEffect(.degrees(rot))
         )
         .overlay(
             Capsule()
-                .stroke(selected ? Color.white.opacity(0.20) : Color.gray.opacity(0.18), lineWidth: 1)
+                .stroke(selected ? Color.white.opacity(0.20) : disabled ? Color.gray.opacity(0.08) : Color.gray.opacity(0.18), lineWidth: 1)
         )
         .shadow(color: selected ? .black.opacity(0.10) : .black.opacity(0.02), radius: selected ? 7 : 4, y: selected ? 3 : 2)
-        .opacity(disabled ? 0.45 : 1.0)
         .disabled(disabled)
         .animation(.easeInOut(duration: 0.14), value: selected)
     }
@@ -1969,34 +2088,41 @@ private struct InterestedTile: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             onTap()
         } label: {
-            VStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 28, weight: .medium))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(selected ? .white : brand)
-                    .scaleEffect(selected ? 1.15 : 1.0)
+                    .frame(width: 28)
+                    .scaleEffect(selected ? 1.1 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selected)
                 Text(title)
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(selected ? .white : .primary)
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
             }
-            .frame(maxWidth: .infinity, minHeight: 90)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
             .background(
                 Group {
                     if selected {
-                        LinearGradient(colors: [brand, brandAlt], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        LinearGradient(colors: [brand, brandAlt], startPoint: .leading, endPoint: .trailing)
                     } else {
-                        LinearGradient(colors: [Color(.systemBackground).opacity(0.95), Color(.systemBackground).opacity(0.95)], startPoint: .top, endPoint: .bottom)
+                        Color(.systemBackground).opacity(0.95)
                     }
                 }
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 14)
                     .stroke(selected ? Color.clear : Color.gray.opacity(0.18), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .contentShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: selected ? brand.opacity(0.35) : .black.opacity(0.04), radius: selected ? 12 : 4, y: selected ? 6 : 2)
-            .scaleEffect(selected ? 1.04 : 1.0)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: selected ? brand.opacity(0.30) : .black.opacity(0.03), radius: selected ? 8 : 3, y: selected ? 4 : 1)
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selected)
         }
         .buttonStyle(.plain)
@@ -2153,34 +2279,41 @@ private struct GenderTile: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             selection = value
         } label: {
-            VStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 28, weight: .medium))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(isSelected ? .white : brand)
-                    .scaleEffect(isSelected ? 1.15 : 1.0)
+                    .frame(width: 28)
+                    .scaleEffect(isSelected ? 1.1 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
                 Text(title)
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(isSelected ? .white : .primary)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
             }
-            .frame(maxWidth: .infinity, minHeight: 90)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
             .background(
                 Group {
                     if isSelected {
-                        LinearGradient(colors: [brand, brandAlt], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        LinearGradient(colors: [brand, brandAlt], startPoint: .leading, endPoint: .trailing)
                     } else {
-                        LinearGradient(colors: [Color(.systemBackground).opacity(0.95), Color(.systemBackground).opacity(0.95)], startPoint: .top, endPoint: .bottom)
+                        Color(.systemBackground).opacity(0.95)
                     }
                 }
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 14)
                     .stroke(isSelected ? Color.clear : Color.gray.opacity(0.18), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .contentShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: isSelected ? brand.opacity(0.35) : .black.opacity(0.04), radius: isSelected ? 12 : 4, y: isSelected ? 6 : 2)
-            .scaleEffect(isSelected ? 1.04 : 1.0)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: isSelected ? brand.opacity(0.30) : .black.opacity(0.03), radius: isSelected ? 8 : 3, y: isSelected ? 4 : 1)
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isSelected)
         }
         .buttonStyle(.plain)
@@ -2375,8 +2508,8 @@ private struct BioAIDirectionSheet: View {
                                     .background(
                                         tone == t
                                         ? AnyShapeStyle(LinearGradient(
-                                            colors: [brand, brand.opacity(0.75)],
-                                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                                            colors: [brand, Color(.sRGB, red: 0xF5/255, green: 0x7C/255, blue: 0x5B/255, opacity: 1)],
+                                            startPoint: .leading, endPoint: .trailing))
                                         : AnyShapeStyle(Color(.systemGray6))
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -2391,53 +2524,45 @@ private struct BioAIDirectionSheet: View {
                         }
                     }
 
-                    // Länge tiles
+                    // Länge — kompaktes Segment
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Bio-Länge", systemImage: "text.alignleft")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
 
-                        HStack(spacing: 10) {
-                            ForEach(BioLen.allCases) { l in
+                        HStack(spacing: 0) {
+                            ForEach(Array(BioLen.allCases.enumerated()), id: \.element.id) { idx, l in
                                 Button {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { bioLen = l }
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) { bioLen = l }
                                 } label: {
-                                    VStack(spacing: 8) {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .fill(bioLen == l ? Color.white.opacity(0.2) : brand.opacity(0.09))
-                                                .frame(width: 38, height: 38)
-                                            Image(systemName: l.icon)
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundStyle(bioLen == l ? .white : brand)
-                                        }
+                                    VStack(spacing: 3) {
                                         Text(l.label)
-                                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
                                         Text(l.sublabel)
                                             .font(.caption2)
-                                            .opacity(bioLen == l ? 0.85 : 0.5)
+                                            .opacity(0.7)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 14)
+                                    .padding(.vertical, 11)
                                     .foregroundStyle(bioLen == l ? .white : .primary)
                                     .background(
                                         bioLen == l
                                         ? AnyShapeStyle(LinearGradient(
-                                            colors: [brand, brand.opacity(0.75)],
-                                            startPoint: .top, endPoint: .bottom))
+                                            colors: [brand, Color(.sRGB, red: 0xF5/255, green: 0x7C/255, blue: 0x5B/255, opacity: 1)],
+                                            startPoint: .leading, endPoint: .trailing))
                                         : AnyShapeStyle(Color(.systemGray6))
                                     )
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .overlay(RoundedRectangle(cornerRadius: 14)
-                                        .stroke(bioLen == l ? Color.clear : Color.gray.opacity(0.12), lineWidth: 1))
-                                    .shadow(color: bioLen == l ? brand.opacity(0.3) : .clear, radius: 8, y: 4)
-                                    .scaleEffect(bioLen == l ? 1.02 : 1.0)
                                 }
                                 .buttonStyle(.plain)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: bioLen)
+                                if idx < BioLen.allCases.count - 1 {
+                                    Divider().frame(width: 1).background(Color.gray.opacity(0.2))
+                                }
                             }
                         }
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.15), lineWidth: 1))
+                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: bioLen)
                     }
 
                     PrimaryGradientButton(
@@ -2515,7 +2640,16 @@ private struct BioAIDirectionSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Schließen") { dismiss() }.tint(brand)
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .padding(8)
+                            .background(Color(.systemGray5))
+                            .clipShape(Circle())
+                    }
                 }
             }
         }

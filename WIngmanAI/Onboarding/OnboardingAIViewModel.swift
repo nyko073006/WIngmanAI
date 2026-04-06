@@ -240,8 +240,8 @@ final class OnboardingAIViewModel: ObservableObject {
         // 3 Prompts → je 3 Optionen
         return prompts.enumerated().map { idx, p in
             let base: [String] = [
-                "Guter Kaffee, gute Musik, dann was Spontanes – ohne Stress.",
-                "Gym erledigt, Kopf frei, danach irgendwas, worüber man lachen kann.",
+                "Musik an, Kopf frei, dann was Spontanes – ohne Stress.",
+                "Sport erledigt, Kopf frei, danach irgendwas, worüber man lachen kann.",
                 "Ein Plan ist gut. Ein besserer Plan ist: einfach machen."
             ]
             // kleine Variation pro Prompt
@@ -266,16 +266,16 @@ final class OnboardingAIViewModel: ObservableObject {
     private func fallbackHooks(context: HooksInput) -> [String] {
         let ints = context.interests.prefix(3).joined(separator: " / ")
         return [
-            "Ich kann dir in 30 Sekunden sagen, ob ein Café was taugt.",
             "Meine Woche ist besser, wenn \(ints) drin vorkommt.",
             "Ich bin Team Klartext – was ist deine größte Green Flag?",
             "Ich hab eine Theorie: Musikgeschmack sagt mehr als Sternzeichen.",
-            "Wenn du spontan bist: 1 Sache, die du sofort machen würdest?"
+            "Wenn du spontan bist: 1 Sache, die du sofort machen würdest?",
+            "Ich bau gerade meinen Alltag um – \(context.interests.first ?? "neue Hobbys") inklusive."
         ]
     }
 
     private func fallbackVibes(context: HooksInput? = nil) -> [String] {
-        var base = ["Kaffee & ehrliche Gespräche", "Abendspaziergang mit Snacks", "Flohmarkt-Date", "Kino & Diskussion danach", "Sonnenuntergang-Spot", "Buchhandlung stöbern", "Street Food erkunden", "Kletterpark-Challenge"]
+        var base = ["Abendspaziergang mit Snacks", "Flohmarkt-Date", "Kino & Diskussion danach", "Sonnenuntergang-Spot", "Buchhandlung stöbern", "Street Food erkunden", "Kletterpark-Challenge", "Spontaner Stadtbummel"]
         if let i1 = context?.interests.first {
             base.insert("\(i1)-Abend zu zweit", at: 0)
         }

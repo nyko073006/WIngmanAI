@@ -31,9 +31,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 2. Rate limit (disabled during dev — re-enable before launch) ──────
-    // TODO: uncomment before App Store launch
-    // await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
+    // ── 2. Rate limit ──────────────────────────────────────────────────────
+    const { data: allowed } = await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
+    if (!allowed) return new Response(JSON.stringify({ error: "Daily AI limit reached. Upgrade to get more." }), { status: 429, headers: { "content-type": "application/json" } });
 
     // ── 3. AI call ────────────────────────────────────────────────────────
     const input = await req.json();
@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
       "2. No lists, no comma overload.",
       "3. No cringe clichés ('lebe im Moment', 'suche meinen Partner', 'liebe lachen').",
       "4. Sound like a real person texting, not a LinkedIn profile.",
+      "5. CRITICAL: ONLY use interests from context.interests. NEVER invent interests (e.g. coffee, hiking, cooking) that are not in the list. If interests is empty, write something personality-based with zero interest references.",
     ].join(" ");
 
     const user_prompt = {

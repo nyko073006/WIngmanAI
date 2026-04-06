@@ -21,7 +21,8 @@ struct AuthView: View {
         _isSignUp = State(initialValue: initialSignUp)
     }
 
-    private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
+    private let brand    = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
+    private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
 
     private var emailIsValid: Bool {
         let t = email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -31,21 +32,30 @@ struct AuthView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [brand.opacity(0.18), Color.purple.opacity(0.10), Color(.systemBackground)],
-                startPoint: .top,
+                colors: [brand.opacity(0.18), brandAlt.opacity(0.08), Color(.systemBackground)],
+                startPoint: .topLeading,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 28) {
-                    Spacer(minLength: 40)
+                VStack(spacing: 22) {
+                    Spacer(minLength: 24)
 
                     // Logo
                     Image("colored-logo-ohne-schrift")
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 110)
+                        .frame(height: 56)
+
+                    // Heading
+                    VStack(spacing: 4) {
+                        Text(isSignUp ? "Account erstellen" : "Willkommen zurück")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        Text(isSignUp ? "Starte dein Dating-Erlebnis" : "Schön, dich wieder zu sehen")
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
 
                     // Sign in / Sign up toggle
                     Picker("", selection: $isSignUp) {
@@ -125,9 +135,10 @@ struct AuthView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            LinearGradient(colors: [brand, brand.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [brand, brandAlt], startPoint: .leading, endPoint: .trailing)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .shadow(color: brand.opacity(0.35), radius: 10, y: 5)
                     }
                     .disabled(auth.isBusy || email.isEmpty || password.isEmpty || !emailIsValid || (isSignUp && password.count < 6))
                     .padding(.horizontal, 24)
@@ -161,8 +172,9 @@ struct AuthView: View {
                     )
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                     .padding(.horizontal, 24)
+                    .id("apple-\(isSignUp)")
 
                     // Google Sign In
                     Button {
@@ -182,7 +194,7 @@ struct AuthView: View {
                         .padding(.horizontal, 24)
                     }
 
-                    Spacer(minLength: 40)
+                    Spacer(minLength: 16)
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -201,8 +213,9 @@ struct AuthView: View {
                     await auth.signUp(email: e, password: password)
                 }
             }
-            .presentationDetents([.large])
+            .presentationDetents([.height(520), .large])
             .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
         }
     }
 }
@@ -340,9 +353,9 @@ private struct ConsentSheet: View {
             // Header
             VStack(spacing: 6) {
                 Image(systemName: "checkmark.shield.fill")
-                    .font(.system(size: 36))
+                    .font(.system(size: 32))
                     .foregroundStyle(brand)
-                    .padding(.top, 28)
+                    .padding(.top, 24)
                 Text("Fast geschafft!")
                     .font(.system(.title3, design: .rounded).weight(.bold))
                 Text("Bitte lies und akzeptiere unsere Bedingungen.")
@@ -351,7 +364,7 @@ private struct ConsentSheet: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
 
             // Checkboxes
             VStack(spacing: 0) {
@@ -410,7 +423,20 @@ private struct ConsentSheet: View {
             .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.gray.opacity(0.12), lineWidth: 1))
             .padding(.horizontal, 20)
 
-            Spacer(minLength: 24)
+            // Hint warum Button disabled
+            if !allRequired {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                    Text("Bitte alle Pflichtfelder ✱ akzeptieren")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.top, 14)
+                .padding(.bottom, 4)
+            } else {
+                Spacer(minLength: 14)
+            }
 
             // CTA
             Button {
@@ -564,11 +590,11 @@ struct WelcomeView: View {
 
                 // Feature rows — grouped card
                 VStack(spacing: 0) {
-                    featureRow(icon: "sparkles",                         text: "AI-unterstützte Bio & Hooks")
+                    featureRow(icon: "sparkles",                          title: "Bio, die wirklich matcht",       sub: "KI schreibt dein Profil – du klingst wie du selbst")
                     Divider().padding(.leading, 68).opacity(0.4)
-                    featureRow(icon: "heart.fill",                       text: "Smarte Matches in deiner Nähe")
+                    featureRow(icon: "heart.fill",                        title: "Matches, die passen",            sub: "Smarte Filter für Menschen in deiner Nähe")
                     Divider().padding(.leading, 68).opacity(0.4)
-                    featureRow(icon: "bubble.left.and.bubble.right.fill", text: "Echtzeit-Wingman im Chat")
+                    featureRow(icon: "bubble.left.and.bubble.right.fill", title: "Nie wieder Denkblockade",        sub: "Dein AI-Wingman flüstert dir die perfekte Antwort")
                 }
                 .background(Color(.systemBackground).opacity(0.75))
                 .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -634,10 +660,7 @@ struct WelcomeView: View {
                         Text("Ich habe schon einen Account")
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
                             .foregroundStyle(brand)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                            .background(brand.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .padding(.vertical, 8)
                     }
                     .buttonStyle(.plain)
                 }
@@ -650,7 +673,7 @@ struct WelcomeView: View {
         }
     }
 
-    private func featureRow(icon: String, text: String) -> some View {
+    private func featureRow(icon: String, title: String, sub: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
@@ -658,8 +681,13 @@ struct WelcomeView: View {
                 .frame(width: 40, height: 40)
                 .background(brand.opacity(0.10))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-            Text(text)
-                .font(.system(.subheadline, design: .rounded).weight(.medium))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                Text(sub)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
         }
         .padding(16)

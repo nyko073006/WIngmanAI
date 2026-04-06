@@ -24,6 +24,8 @@
 		2173AED02F2EB68400B78445 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2173AEC02F2EB68400B78445 /* Assets.xcassets */; };
 		2173AED12F2EB68400B78445 /* (null) in Resources */ = {isa = PBXBuildFile; };
 		2173AED22F2EB68400B78446 /* SupabaseClientProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AED32F2EB68400B78446 /* SupabaseClientProvider.swift */; };
+		2188757E2F7EE16400A7477B /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 2188757D2F7EE16400A7477B /* GoogleSignIn */; };
+		218875802F7EE16400A7477B /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2188757F2F7EE16400A7477B /* GoogleSignInSwift */; };
 		AA010001AAAAAAAA00000001 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000001 /* AIService.swift */; };
 		AA010001AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift */; };
 		AA010001AAAAAAAA00000005 /* LocationRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000020 /* LocationRefreshService.swift */; };
@@ -113,9 +115,11 @@
 				210F8C312F2E8E06000C4B92 /* PostgREST in Frameworks */,
 				210F8C2F2F2E8E06000C4B92 /* Functions in Frameworks */,
 				210F8C372F2E8E06000C4B92 /* Supabase in Frameworks */,
+				218875802F7EE16400A7477B /* GoogleSignInSwift in Frameworks */,
 				210F8C2D2F2E8E06000C4B92 /* Auth in Frameworks */,
 				210F8C352F2E8E06000C4B92 /* Storage in Frameworks */,
 				210F8C332F2E8E06000C4B92 /* Realtime in Frameworks */,
+				2188757E2F7EE16400A7477B /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -260,6 +264,8 @@
 				210F8C322F2E8E06000C4B92 /* Realtime */,
 				210F8C342F2E8E06000C4B92 /* Storage */,
 				210F8C362F2E8E06000C4B92 /* Supabase */,
+				2188757D2F7EE16400A7477B /* GoogleSignIn */,
+				2188757F2F7EE16400A7477B /* GoogleSignInSwift */,
 			);
 			productName = WIngmanAI;
 			productReference = 210F8C1D2F2E8A1F000C4B92 /* WIngmanAI.app */;
@@ -291,6 +297,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				2188757C2F7EE16400A7477B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 210F8C1E2F2E8A1F000C4B92 /* Products */;
@@ -496,6 +503,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WIngmanAI/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Wingmang;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Bitte Lächeln! Zeig dich für ein kurzen Schnappschuss.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wir benötigen deinen Standort, um dir Profile in deiner Nähe anzuzeigen.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Wir benötigen Zugriff auf die Bilder, die du hochladen möchtest!";
@@ -555,6 +564,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WIngmanAI/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Wingmang;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Bitte Lächeln! Zeig dich für ein kurzen Schnappschuss.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wir benötigen deinen Standort, um dir Profile in deiner Nähe anzuzeigen.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Wir benötigen Zugriff auf die Bilder, die du hochladen möchtest!";
@@ -633,6 +644,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		2188757C2F7EE16400A7477B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -665,6 +684,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 210F8C2B2F2E8E06000C4B92 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		2188757D2F7EE16400A7477B /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2188757C2F7EE16400A7477B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		2188757F2F7EE16400A7477B /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2188757C2F7EE16400A7477B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

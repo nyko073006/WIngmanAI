@@ -99,7 +99,7 @@ struct DiscoverView: View {
                             }
                             .accessibilityLabel("Sucheinstellungen")
                             .overlay(alignment: .topTrailing) {
-                                if vm.isRelaxed {
+                                if vm.hasActiveFilters {
                                     Circle()
                                         .fill(brandColor)
                                         .frame(width: 8, height: 8)
@@ -124,6 +124,9 @@ struct DiscoverView: View {
                 }
         }
         .task(id: auth.session?.user.id) {
+            if let myId = auth.session?.user.id {
+                await vm.loadFilterDefaults(myUserId: myId)
+            }
             await reload()
             await loadLikesCount()
         }
@@ -139,7 +142,7 @@ struct DiscoverView: View {
         }
         .sheet(isPresented: $showSearchSettings) {
             SearchSettingsSheet(vm: vm, myUserId: auth.session?.user.id)
-                .presentationDetents([.medium])
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(28)
         }
@@ -227,25 +230,26 @@ struct DiscoverView: View {
             }
             .padding()
         } else if let err = vm.errorText {
-            VStack(spacing: 12) {
-                Text("Fehler")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-
+            VStack(spacing: 14) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 38))
+                    .foregroundStyle(.orange)
                 Text(err)
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-
-                Button("Neu laden") { Task { await reload() } }
+                    .padding(.horizontal, 32)
+                Button("Erneut versuchen") { Task { await reload() } }
                     .buttonStyle(.borderedProminent)
+                    .tint(brandColor)
             }
             .padding()
         } else if vm.currentProfile != nil {
             let stack = Array(vm.profiles.prefix(3))
-            let cardH: CGFloat = 480
+            GeometryReader { geo in
+            let cardH = max(400, geo.size.height - 140)
 
-            VStack(spacing: 16) {
+            VStack(spacing: 10) {
                 ZStack {
                     ForEach(Array(stack.enumerated()).reversed(), id: \.element.id) { idx, prof in
                         let isTop = (idx == 0)
@@ -357,7 +361,9 @@ struct DiscoverView: View {
                 }
 
                 // Action buttons
-                HStack(spacing: 44) {
+                HStack(spacing: 0) {
+                    Spacer()
+
                     // Nope
                     Button {
                         Task {
@@ -371,16 +377,49 @@ struct DiscoverView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(Color(.systemBackground))
-                                .shadow(color: Color(.systemGray4).opacity(0.5), radius: 12, y: 5)
+                                .fill(Color(.systemGray5))
+                                .shadow(color: Color.black.opacity(0.08), radius: 8, y: 3)
                             Image(systemName: "xmark")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(Color(.systemGray2))
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(Color(.systemGray))
                         }
-                        .frame(width: 64, height: 64)
+                        .frame(width: 62, height: 62)
                     }
                     .accessibilityLabel("Nope")
                     .disabled(vm.isSwiping || vm.isLoading)
+
+                    Spacer()
+
+                    // Superlike (center)
+                    Button {
+                        Task {
+                            hapticImpact(.medium)
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                cardOffset = CGSize(width: 0, height: -900)
+                            }
+                            if !swipeHintShown { swipeHintShown = true }
+                            await swipe(isLike: true)
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.55, green: 0.2, blue: 0.95),
+                                                 Color(red: 0.72, green: 0.28, blue: 1.0)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                                .shadow(color: Color.purple.opacity(0.35), radius: 12, y: 5)
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                        .frame(width: 62, height: 62)
+                    }
+                    .accessibilityLabel("Superlike")
+                    .disabled(vm.isSwiping || vm.isLoading)
+
+                    Spacer()
 
                     // Like
                     Button {
@@ -399,18 +438,20 @@ struct DiscoverView: View {
                                     LinearGradient(colors: [brandColor, brandColorAlt],
                                                    startPoint: .topLeading, endPoint: .bottomTrailing)
                                 )
-                                .shadow(color: brandColor.opacity(0.5), radius: 18, y: 8)
+                                .shadow(color: brandColor.opacity(0.35), radius: 12, y: 5)
                             Image(systemName: "heart.fill")
-                                .font(.system(size: 28, weight: .semibold))
+                                .font(.system(size: 22, weight: .semibold))
                                 .foregroundStyle(.white)
                         }
-                        .frame(width: 80, height: 80)
+                        .frame(width: 62, height: 62)
                     }
                     .accessibilityLabel("Like")
                     .disabled(vm.isSwiping || vm.isLoading)
                     .symbolEffect(.bounce, value: vm.isSwiping)
+
+                    Spacer()
                 }
-                .frame(height: 96)
+                .frame(height: 88)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -427,6 +468,8 @@ struct DiscoverView: View {
                             }
                         }
                 }
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
             }
         } else {
             VStack(spacing: 20) {
@@ -590,72 +633,268 @@ private struct SearchSettingsSheet: View {
     let myUserId: UUID?
     @Environment(\.dismiss) private var dismiss
 
+    @State private var ageMin: Double = 18
+    @State private var ageMax: Double = 45
+    @State private var distanceKm: Double = 50
+    @State private var unlimitedDistance: Bool = false
+    @State private var lookingFor: String = "_all_"
+    @State private var interestedIn: Set<String> = []
+    @State private var isRelaxed: Bool = false
+
+    private let genders = ["Frauen", "Männer", "Divers"]
+    private let lookingForOpts: [(String, String, String)] = [
+        ("serious",     "infinity",       "Etwas Ernstes"),
+        ("casual",      "sparkles",       "Etwas Lockeres"),
+        ("friends",     "person.2.fill",  "Neue Freunde"),
+        ("open_to_all", "heart",          "Bin offen")
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Sucheinstellungen")
-                        .font(.system(.headline, design: .rounded))
-                    Text("Passe an, wen du siehst")
-                        .font(.caption)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+
+                    // Distance
+                    filterSection(title: "Entfernung", icon: "location.circle.fill") {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text(unlimitedDistance ? "Unbegrenzt" : "\(Int(distanceKm)) km")
+                                    .font(.system(.title3, design: .rounded).weight(.bold))
+                                    .foregroundStyle(brandColor)
+                                Spacer()
+                                Toggle("Unbegrenzt", isOn: $unlimitedDistance)
+                                    .labelsHidden()
+                                    .tint(brandColor)
+                            }
+                            if !unlimitedDistance {
+                                Slider(value: $distanceKm, in: 5...200, step: 5)
+                                    .tint(brandColor)
+                                HStack {
+                                    Text("5 km").font(.caption2).foregroundStyle(.tertiary)
+                                    Spacer()
+                                    Text("200 km").font(.caption2).foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
+                    }
+
+                    // Age
+                    filterSection(title: "Alter", icon: "figure.2") {
+                        VStack(spacing: 14) {
+                            HStack {
+                                Text("\(Int(ageMin))–\(Int(ageMax)) Jahre")
+                                    .font(.system(.title3, design: .rounded).weight(.bold))
+                                    .foregroundStyle(brandColor)
+                                Spacer()
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Von: \(Int(ageMin))").font(.caption).foregroundStyle(.secondary)
+                                Slider(
+                                    value: $ageMin,
+                                    in: 18...Double(max(18, Int(ageMax) - 1)),
+                                    step: 1
+                                ) { _ in if ageMin >= ageMax { ageMax = min(80, ageMin + 1) } }
+                                .tint(brandColor)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Bis: \(Int(ageMax))").font(.caption).foregroundStyle(.secondary)
+                                Slider(
+                                    value: $ageMax,
+                                    in: Double(min(80, Int(ageMin) + 1))...80,
+                                    step: 1
+                                ) { _ in if ageMax <= ageMin { ageMin = max(18, ageMax - 1) } }
+                                .tint(brandColor)
+                            }
+                        }
+                    }
+
+                    // Interested in
+                    filterSection(title: "Ich möchte sehen", icon: "person.2.fill") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                ForEach(genders, id: \.self) { g in
+                                    filterChip(
+                                        label: g,
+                                        isOn: interestedIn.isEmpty || interestedIn.contains(g)
+                                    ) {
+                                        if interestedIn.isEmpty {
+                                            // First tap: select only this one
+                                            interestedIn = Set(genders.filter { $0 != g })
+                                        } else if interestedIn.contains(g) {
+                                            interestedIn.remove(g)
+                                            if interestedIn.isEmpty { interestedIn = [] } // = all
+                                        } else {
+                                            interestedIn.insert(g)
+                                            if interestedIn.count == genders.count { interestedIn = [] }
+                                        }
+                                    }
+                                }
+                            }
+                            Text(interestedIn.isEmpty ? "Alle anzeigen" : interestedIn.sorted().joined(separator: ", "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    // Looking for
+                    filterSection(title: "Ich suche", icon: "heart.circle.fill") {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 8) {
+                                ForEach(lookingForOpts.prefix(2), id: \.0) { val, icon, label in
+                                    lookingForChip(val: val, icon: icon, label: label)
+                                }
+                            }
+                            HStack(spacing: 8) {
+                                ForEach(lookingForOpts.dropFirst(2), id: \.0) { val, icon, label in
+                                    lookingForChip(val: val, icon: icon, label: label)
+                                }
+                            }
+                            if lookingFor == "_all_" {
+                                Text("Alle Suchziele werden angezeigt")
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+
+                    // Relaxed mode
+                    filterSection(title: "Filter lockern", icon: "magnifyingglass.circle.fill") {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Erweiterte Suche")
+                                    .font(.subheadline.weight(.medium))
+                                Text("±2 Jahre · +50 % Distanz (max. 100 km)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $isRelaxed)
+                                .labelsHidden()
+                                .tint(brandColor)
+                        }
+                    }
+
+                    Spacer(minLength: 80)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .navigationTitle("Sucheinstellungen")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Zurücksetzen") {
+                        guard let id = myUserId else { return }
+                        Task { await vm.resetFilters(myUserId: id); dismiss() }
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(vm.hasActiveFilters ? brandColor : .secondary)
+                    .disabled(!vm.hasActiveFilters)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Abbrechen") { dismiss() }
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button("Fertig") { dismiss() }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(brandColor)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 22)
-            .padding(.bottom, 16)
-
-            Divider()
-
-            Toggle(isOn: Binding(
-                get: { vm.isRelaxed },
-                set: { newVal in
-                    guard let id = myUserId else { return }
-                    Task { await vm.setRelaxed(newVal, myUserId: id) }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    commitToVM()
+                    guard let id = myUserId else { dismiss(); return }
+                    Task { await vm.applyFilters(myUserId: id); dismiss() }
+                } label: {
+                    Text("Anwenden")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [brandColor, brandColorAlt],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: brandColor.opacity(0.35), radius: 10, y: 5)
                 }
-            )) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(vm.isRelaxed ? brandColor.opacity(0.15) : Color(.systemGray5))
-                            .frame(width: 38, height: 38)
-                        Image(systemName: vm.isRelaxed ? "magnifyingglass.circle.fill" : "magnifyingglass")
-                            .foregroundStyle(vm.isRelaxed ? brandColor : .secondary)
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Erweiterte Suche")
-                            .font(.body.weight(.medium))
-                        Text("±2 Jahre · +50 % Distanz (max. 100 km)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                .background(.ultraThinMaterial)
             }
-            .tint(brandColor)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-
-            Divider()
-
-            HStack(spacing: 8) {
-                Image(systemName: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Text("Dein Radius und Alter-Filter werden im Profil gesetzt.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-
-            Spacer()
         }
+        .onAppear { syncFromVM() }
+    }
+
+    // MARK: - Sub-views
+
+    @ViewBuilder
+    private func filterSection<Content: View>(
+        title: String, icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func filterChip(label: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isOn ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(isOn ? brandColor : Color(.systemGray5))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func lookingForChip(val: String, icon: String, label: String) -> some View {
+        let isOn = lookingFor == val
+        Button { lookingFor = isOn ? "_all_" : val } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.caption.weight(.semibold))
+                Text(label).font(.subheadline.weight(.medium))
+            }
+            .foregroundStyle(isOn ? .white : .primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isOn ? brandColor : Color(.systemGray5))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - State sync
+
+    private func syncFromVM() {
+        ageMin = Double(vm.filterAgeMin)
+        ageMax = Double(vm.filterAgeMax)
+        unlimitedDistance = vm.filterDistanceKm >= 9999
+        distanceKm = unlimitedDistance ? 100 : Double(vm.filterDistanceKm)
+        lookingFor = vm.filterLookingFor
+        interestedIn = vm.filterInterestedIn == "_all_"
+            ? []
+            : Set(vm.filterInterestedIn.split(separator: ",").map(String.init))
+        isRelaxed = vm.isRelaxed
+    }
+
+    private func commitToVM() {
+        vm.filterAgeMin = Int(ageMin)
+        vm.filterAgeMax = Int(ageMax)
+        vm.filterDistanceKm = unlimitedDistance ? 9999 : Int(distanceKm)
+        vm.filterLookingFor = lookingFor
+        vm.filterInterestedIn = interestedIn.isEmpty ? "_all_" : interestedIn.sorted().joined(separator: ",")
+        vm.isRelaxed = isRelaxed
     }
 }
 
@@ -677,19 +916,7 @@ private struct SwipeableProfileCard: View {
     let onThresholdCross: (SwipeLabel) -> Void
     let onThresholdExit: () -> Void
 
-    private var rotation: Angle { .degrees(Double(offset.width / 32)) }
-
-    private var tiltX: Double {
-        let maxTilt = 8.0
-        let v = max(-1.0, min(1.0, Double(offset.height / 220)))
-        return -v * maxTilt
-    }
-
-    private var tiltY: Double {
-        let maxTilt = 10.0
-        let v = max(-1.0, min(1.0, Double(offset.width / 240)))
-        return v * maxTilt
-    }
+    private var rotation: Angle { .degrees(Double(offset.width / 22)) }
 
     private var likeOpacity: Double {
         let v = max(0, min(1, (offset.width - threshold) / 80))
@@ -719,9 +946,6 @@ private struct SwipeableProfileCard: View {
             }
             .offset(offset)
             .rotationEffect(rotation)
-            .rotation3DEffect(.degrees(tiltX), axis: (x: 1, y: 0, z: 0), perspective: 0.85)
-            .rotation3DEffect(.degrees(tiltY), axis: (x: 0, y: 1, z: 0), perspective: 0.85)
-            .animation(.spring(response: 0.28, dampingFraction: 0.86), value: offset)
             .gesture(
                 DragGesture()
                     .onChanged { v in
@@ -747,7 +971,7 @@ private struct SwipeableProfileCard: View {
                         } else if x < -threshold {
                             onCommit(false)
                         } else {
-                            withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.7)) {
                                 offset = .zero
                                 label = nil
                             }

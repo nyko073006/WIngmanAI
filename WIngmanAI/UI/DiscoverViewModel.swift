@@ -20,7 +20,7 @@ private struct DiscoverRow: Decodable {
     let interests: [String]?
     let birthdate: String?
     let primary_photo_url: String?
-    let distance_km: Int?
+    let distance_km: Double?
     let last_active_at: Date?
 }
 
@@ -47,6 +47,29 @@ final class DiscoverViewModel: ObservableObject {
 
     // Relaxed discover (user-triggered)
     @Published var isRelaxed: Bool = false
+
+    // Search filter overrides (session-only; loaded from profile on first use)
+    @Published var filterAgeMin: Int = 18
+    @Published var filterAgeMax: Int = 45
+    @Published var filterDistanceKm: Int = 50
+    @Published var filterLookingFor: String = "_all_"
+    @Published var filterInterestedIn: String = "_all_"
+
+    private var filterDefaultsLoaded = false
+    private var defaultAgeMin: Int = 18
+    private var defaultAgeMax: Int = 45
+    private var defaultDistanceKm: Int = 50
+    private var defaultLookingFor: String = "_all_"
+    private var defaultInterestedIn: String = "_all_"
+
+    var hasActiveFilters: Bool {
+        filterAgeMin != defaultAgeMin ||
+        filterAgeMax != defaultAgeMax ||
+        filterDistanceKm != defaultDistanceKm ||
+        filterLookingFor != defaultLookingFor ||
+        filterInterestedIn != defaultInterestedIn ||
+        isRelaxed
+    }
 
     // Match overlay state
     @Published var showMatchAlert: Bool = false
@@ -117,7 +140,12 @@ final class DiscoverViewModel: ObservableObject {
 
         var params: [String: String] = [
             "p_limit": String(pageSize),
-            "p_relaxed": isRelaxed ? "true" : "false"
+            "p_relaxed": isRelaxed ? "true" : "false",
+            "p_age_min": String(filterAgeMin),
+            "p_age_max": String(filterAgeMax),
+            "p_distance_km": String(filterDistanceKm),
+            "p_looking_for_filter": filterLookingFor,
+            "p_interested_in": filterInterestedIn
         ]
         if let cu = cursorUpdatedAt {
             params["p_cursor_updated_at"] = discoverISO8601.string(from: cu)
@@ -133,7 +161,7 @@ final class DiscoverViewModel: ObservableObject {
                 .execute()
                 .value
         } catch {
-            self.errorText = error.localizedDescription
+            self.errorText = AppError.userMessage(for: error)
             return
         }
 
@@ -147,7 +175,7 @@ final class DiscoverViewModel: ObservableObject {
                 bio: $0.bio ?? "",
                 interests: $0.interests ?? [],
                 birthdate: $0.birthdate,
-                distanceKm: $0.distance_km,
+                distanceKm: $0.distance_km.map { Int($0.rounded()) },
                 lastActiveAt: $0.last_active_at
             )
         }
@@ -285,7 +313,7 @@ final class DiscoverViewModel: ObservableObject {
             allPhotosByUserId[target.id] = targetAllPhotos
             if let url = targetPhotoUrl { primaryPhotoByUserId[target.id] = url }
             lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
-            errorText = error.localizedDescription
+            errorText = AppError.userMessage(for: error)
         }
     }
 
@@ -302,7 +330,7 @@ final class DiscoverViewModel: ObservableObject {
         do {
             try await swipeService.deleteSwipe(swiperId: myUserId, targetId: profile.id)
         } catch {
-            errorText = error.localizedDescription
+            errorText = AppError.userMessage(for: error)
             lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
             return
         }
@@ -334,6 +362,63 @@ final class DiscoverViewModel: ObservableObject {
     }
 
     // MARK: - Private helpers
+
+    // MARK: - Search filter management
+
+    func loadFilterDefaults(myUserId: UUID) async {
+        guard !filterDefaultsLoaded else { return }
+        filterDefaultsLoaded = true
+        struct Row: Decodable {
+            let age_min: Int?
+            let age_max: Int?
+            let distance_km: Int?
+            let looking_for: String?
+            let interested_in_arr: [String]?
+        }
+        do {
+            let rows: [Row] = try await SupabaseClientProvider.shared.client
+                .from("profiles")
+                .select("age_min,age_max,distance_km,looking_for,interested_in_arr")
+                .eq("user_id", value: myUserId.uuidString)
+                .limit(1)
+                .execute()
+                .value
+            if let r = rows.first {
+                let ageMin = r.age_min ?? 18
+                let ageMax = r.age_max ?? 45
+                let distKm = r.distance_km ?? 50
+                let lookingFor = r.looking_for ?? "_all_"
+                let arr = (r.interested_in_arr ?? []).filter { $0 != "Alle" && $0 != "all" }
+                let interestedIn = arr.isEmpty ? "_all_" : arr.joined(separator: ",")
+
+                filterAgeMin = ageMin;    filterAgeMax = ageMax
+                filterDistanceKm = distKm; filterLookingFor = lookingFor
+                filterInterestedIn = interestedIn
+
+                defaultAgeMin = ageMin;    defaultAgeMax = ageMax
+                defaultDistanceKm = distKm; defaultLookingFor = lookingFor
+                defaultInterestedIn = interestedIn
+            }
+        } catch { /* silent – defaults remain */ }
+    }
+
+    func applyFilters(myUserId: UUID) async {
+        preloadTask?.cancel(); preloadTask = nil
+        profiles = []; primaryPhotoByUserId = [:]; allPhotosByUserId = [:]
+        seenUserIds = []; hasMore = true
+        cursorUpdatedAt = nil; cursorUserId = nil
+        errorText = nil; showMatchAlert = false
+        matchedUser = nil; matchedMatchId = nil; matchedUserPhotoUrl = nil
+        lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+        await load(myUserId: myUserId)
+    }
+
+    func resetFilters(myUserId: UUID) async {
+        filterAgeMin = defaultAgeMin;    filterAgeMax = defaultAgeMax
+        filterDistanceKm = defaultDistanceKm; filterLookingFor = defaultLookingFor
+        filterInterestedIn = defaultInterestedIn; isRelaxed = false
+        await applyFilters(myUserId: myUserId)
+    }
 
     private func matchIdIfExists(myUserId: UUID, otherUserId: UUID) async -> UUID? {
         let low = min(myUserId, otherUserId)

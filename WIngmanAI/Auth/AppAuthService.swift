@@ -5,6 +5,7 @@ import Auth
 import AuthenticationServices
 import GoogleSignIn
 import UIKit
+import CryptoKit
 
 
 @MainActor
@@ -105,7 +106,7 @@ final class AppAuthService: ObservableObject {
                 )
             }
         } catch {
-            self.error = AppError(title: "Sign Up fehlgeschlagen", message: error.localizedDescription)
+            self.error = AppError(title: "Registrierung fehlgeschlagen", message: AppError.userMessage(for: error))
         }
     }
 
@@ -118,7 +119,7 @@ final class AppAuthService: ObservableObject {
             let session = try await client.auth.signIn(email: email, password: password)
             setSession(session)
         } catch {
-            self.error = AppError(title: "Sign In fehlgeschlagen", message: error.localizedDescription)
+            self.error = AppError(title: "Anmeldung fehlgeschlagen", message: AppError.userMessage(for: error))
         }
     }
 
@@ -133,7 +134,7 @@ final class AppAuthService: ObservableObject {
                 message: "Falls ein Account mit dieser Adresse existiert, schicken wir dir einen Reset-Link."
             )
         } catch {
-            self.error = AppError(title: "Fehler", message: error.localizedDescription)
+            self.error = AppError(title: "Fehler", message: AppError.userMessage(for: error))
         }
     }
 
@@ -145,11 +146,17 @@ final class AppAuthService: ObservableObject {
             try await client.auth.signOut()
             setSession(nil)
         } catch {
-            self.error = AppError(title: "Sign Out fehlgeschlagen", message: error.localizedDescription)
+            self.error = AppError(title: "Abmeldung fehlgeschlagen", message: AppError.userMessage(for: error))
         }
     }
 
     // MARK: - Google Sign In
+
+    private func randomNonceString(length: Int = 32) -> String {
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        _ = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        return randomBytes.map { String(format: "%02x", $0) }.joined()
+    }
 
     func signInWithGoogle() async {
         isBusy = true
@@ -158,26 +165,44 @@ final class AppAuthService: ObservableObject {
 
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
-            self.error = AppError(title: "Google Sign In fehlgeschlagen", message: "Kein Root-View gefunden.")
+            self.error = AppError(title: "Google Sign In fehlgeschlagen", message: "Anmeldung konnte nicht gestartet werden.")
             return
         }
 
+        let rawNonce = randomNonceString()
+        let hashedNonce = SHA256.hash(data: Data(rawNonce.utf8))
+            .map { String(format: "%02x", $0) }.joined()
+
         do {
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            // async API hat keinen nonce-Parameter → Callback-API wrappen
+            let result: GIDSignInResult = try await withCheckedThrowingContinuation { continuation in
+                GIDSignIn.sharedInstance.signIn(
+                    withPresenting: rootVC,
+                    hint: nil,
+                    additionalScopes: nil,
+                    nonce: hashedNonce
+                ) { signInResult, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if let signInResult {
+                        continuation.resume(returning: signInResult)
+                    }
+                }
+            }
             guard let idToken = result.user.idToken?.tokenString else {
-                self.error = AppError(title: "Google Sign In fehlgeschlagen", message: "Kein ID Token erhalten.")
+                self.error = AppError(title: "Google Sign In fehlgeschlagen", message: "Authentifizierung fehlgeschlagen. Bitte versuche es erneut.")
                 return
             }
             let accessToken = result.user.accessToken.tokenString
             let session = try await client.auth.signInWithIdToken(
-                credentials: .init(provider: .google, idToken: idToken, accessToken: accessToken)
+                credentials: .init(provider: .google, idToken: idToken, accessToken: accessToken, nonce: rawNonce)
             )
             setSession(session)
         } catch {
             let nsErr = error as NSError
             // GIDSignInErrorCodeCanceled = -5
             guard nsErr.code != -5 else { return }
-            self.error = AppError(title: "Google Sign In fehlgeschlagen", message: error.localizedDescription)
+            self.error = AppError(title: "Google Sign In fehlgeschlagen", message: AppError.userMessage(for: error))
         }
     }
 
@@ -187,13 +212,13 @@ final class AppAuthService: ObservableObject {
         switch result {
         case .failure(let err):
             if let authErr = err as? ASAuthorizationError, authErr.code == .canceled { return }
-            self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: err.localizedDescription)
+            self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: AppError.userMessage(for: err))
 
         case .success(let authorization):
             guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
                   let tokenData = credential.identityToken,
                   let idToken = String(data: tokenData, encoding: .utf8) else {
-                self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: "Kein Identity Token erhalten.")
+                self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: "Authentifizierung fehlgeschlagen. Bitte versuche es erneut.")
                 return
             }
 
@@ -221,7 +246,7 @@ final class AppAuthService: ObservableObject {
                     }
                 }
             } catch {
-                self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: error.localizedDescription)
+                self.error = AppError(title: "Apple Sign In fehlgeschlagen", message: AppError.userMessage(for: error))
             }
         }
     }
@@ -245,7 +270,7 @@ final class AppAuthService: ObservableObject {
             )
             setSession(nil)
         } catch {
-            self.error = AppError(title: "Account löschen fehlgeschlagen", message: error.localizedDescription)
+            self.error = AppError(title: "Account löschen fehlgeschlagen", message: AppError.userMessage(for: error))
         }
     }
 }

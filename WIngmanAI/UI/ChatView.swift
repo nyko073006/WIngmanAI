@@ -238,14 +238,24 @@ struct ChatView: View {
                     .padding(12)
                 }
                 .background(Color(.systemGroupedBackground))
-                // iOS 17+ onChange Signature
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: vm.messages.last?.id) { _, _ in
+                    scrollToBottom(proxy)
+                }
+                .onChange(of: vm.messages.count) { _, _ in
                     scrollToBottom(proxy)
                 }
                 .onChange(of: vm.otherIsTyping) { _, isTyping in
                     if isTyping {
                         withAnimation(.easeOut(duration: 0.2)) {
                             proxy.scrollTo("typing", anchor: .bottom)
+                        }
+                    }
+                }
+                .onChange(of: isTextFocused) { _, focused in
+                    if focused {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+                            scrollToBottom(proxy)
                         }
                     }
                 }
@@ -393,13 +403,13 @@ struct ChatView: View {
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
-        guard let last = vm.messages.last else { return }
+        let target: AnyHashable = vm.otherIsTyping ? AnyHashable("typing") : (vm.messages.last.map { AnyHashable($0.id) } ?? AnyHashable("typing"))
         if animated {
-            withAnimation(.easeOut(duration: 0.15)) {
-                proxy.scrollTo(last.id, anchor: .bottom)
+            withAnimation(.easeOut(duration: 0.18)) {
+                proxy.scrollTo(target, anchor: .bottom)
             }
         } else {
-            proxy.scrollTo(last.id, anchor: .bottom)
+            proxy.scrollTo(target, anchor: .bottom)
         }
     }
 
@@ -607,13 +617,24 @@ private struct MessageBubble: View {
                                 .clipped()
                         case .empty:
                             ZStack {
-                                Color(.systemGray5).frame(width: 180, height: 180)
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color(.systemGray5))
+                                    .frame(width: 180, height: 180)
                                 ProgressView()
                             }
                         case .failure:
                             ZStack {
-                                Color(.systemGray5).frame(width: 180, height: 60)
-                                Image(systemName: "photo").foregroundStyle(.secondary)
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color(.systemGray5))
+                                    .frame(width: 180, height: 180)
+                                VStack(spacing: 6) {
+                                    Image(systemName: "photo")
+                                        .font(.title2)
+                                        .foregroundStyle(.secondary)
+                                    Text("Bild nicht verfügbar")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
                         }
                     }
@@ -628,10 +649,10 @@ private struct MessageBubble: View {
                         .background(
                             isMine
                                 ? AnyShapeStyle(LinearGradient(colors: [chatBrand, chatBrandAlt], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                : AnyShapeStyle(Color(.systemGray6))
+                                : AnyShapeStyle(Color(.systemGray4))
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: isMine ? chatBrand.opacity(0.25) : .black.opacity(0.06), radius: 6, y: 2)
+                        .shadow(color: isMine ? chatBrand.opacity(0.25) : .black.opacity(0.1), radius: 6, y: 2)
                         .overlay(alignment: isMine ? .bottomLeading : .bottomTrailing) {
                             if isReacted {
                                 Text("❤️")

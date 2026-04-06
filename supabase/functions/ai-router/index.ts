@@ -41,6 +41,7 @@ SPRACHE: Deutsch. Authentisch. Prägnant.`;
 
 Deno.serve(async (req) => {
   const startTime = Date.now();
+  try {
 
   // ── 1. Auth ────────────────────────────────────────────────────────────────
   const authHeader = req.headers.get("Authorization");
@@ -54,10 +55,9 @@ Deno.serve(async (req) => {
   );
   if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
-  // ── 2. Rate limit (disabled during dev — re-enable before launch) ─────────
-  // TODO: uncomment before App Store launch
-  // const { data: allowed } = await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
-  // if (!allowed) return json({ error: "Daily AI limit reached. Upgrade to get more." }, 429);
+  // ── 2. Rate limit ─────────────────────────────────────────────────────────
+  const { data: allowed } = await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
+  if (!allowed) return json({ error: "Daily AI limit reached. Upgrade to get more." }, 429);
 
   // ── 3. Parse input ─────────────────────────────────────────────────────────
   const body = await req.json();
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
   let response: any;
-  let tokensIn = 0, tokensOut = 0, model = "gpt-5.4-nano";
+  let tokensIn = 0, tokensOut = 0, model = "gpt-4o-mini";
 
   try {
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -163,6 +163,11 @@ Deno.serve(async (req) => {
   );
 
   return json({ ...response, event_id: eventId });
+
+  } catch (e) {
+    console.error("[ai-router] unhandled error:", e);
+    return json({ error: String(e) }, 500);
+  }
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -408,6 +408,7 @@ struct ProfileTabView: View {
     @StateObject private var vm = ProfileViewModel()
 
     @StateObject private var premium = PremiumService.shared
+    @StateObject private var usage = UsageLimitService.shared
     @State private var showSubscription = false
     @State private var showEditSheet = false
     @State private var showDiscoverySettings = false
@@ -688,7 +689,7 @@ struct ProfileTabView: View {
                 .padding(.horizontal, 16)
             }
 
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 16) {
 
                 // Bio
                 if !vm.bio.isEmpty {
@@ -716,53 +717,11 @@ struct ProfileTabView: View {
                 // Hooks
                 if !vm.hooks.isEmpty {
                     section("Gesprächsstarter") {
-                        FlowChips(items: vm.hooks, brand: brand.opacity(0.6))
+                        FlowChips(items: Array(vm.hooks.prefix(3)), brand: brand.opacity(0.6))
                     }
                 }
 
                 // Hooks
-
-                // Boundaries
-                section("Grenzen & Präferenzen") {
-                    Button {
-                        showBoundarySettings = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.teal.opacity(0.12))
-                                    .frame(width: 36, height: 36)
-                                Image(systemName: "hand.raised.fill")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(Color.teal)
-                            }
-                            VStack(alignment: .leading, spacing: 3) {
-                                if vm.boundaries.relationshipGoal == nil && vm.boundaries.dealbreakers.isEmpty {
-                                    Text("Grenzen festlegen")
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                    Text("Zeig, was du suchst – weniger Missverständnisse")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text("Grenzen & Präferenzen")
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                    let chips = boundaryChipLabels(vm.boundaries)
-                                    Text(chips.isEmpty ? "Festgelegt" : chips.prefix(2).joined(separator: " · "))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
 
                 // Subscription
                 section("Wingman Pro") {
@@ -823,6 +782,33 @@ struct ProfileTabView: View {
                     }
                 }
 
+                // Daily usage
+                section("Heutige Nutzung") {
+                    UsageRow(
+                        icon: "sparkles",
+                        label: "AI Credits",
+                        used: usage.current.aiCreditsPerDay - usage.remainingAI,
+                        total: usage.current.aiCreditsPerDay,
+                        color: brand
+                    )
+                    Divider()
+                    UsageRow(
+                        icon: "hand.draw.fill",
+                        label: "Swipes",
+                        used: usage.current.swipesPerDay - usage.remainingSwipes,
+                        total: usage.current.swipesPerDay,
+                        color: .orange
+                    )
+                    Divider()
+                    UsageRow(
+                        icon: "arrow.uturn.backward",
+                        label: "Rewinds",
+                        used: usage.current.rewindsPerDay - usage.remainingRewinds,
+                        total: usage.current.rewindsPerDay,
+                        color: .blue
+                    )
+                }
+
                 // Discovery settings
                 section("Sucheinstellungen") {
                     Button {
@@ -854,6 +840,8 @@ struct ProfileTabView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    Divider()
+
                     if let url = URL(string: "https://wingmanapp.de/datenschutz") {
                         Link(destination: url) {
                             Label("Datenschutzerklärung", systemImage: "hand.raised")
@@ -869,6 +857,9 @@ struct ProfileTabView: View {
                                 .foregroundStyle(.primary)
                         }
                     }
+
+                    Divider()
+
                     Button {
                         Task { await signOut() }
                     } label: {
@@ -877,11 +868,12 @@ struct ProfileTabView: View {
                                 ProgressView().scaleEffect(0.85)
                                 Text("Abmelden…")
                                     .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
                         } else {
                             Label("Abmelden", systemImage: "rectangle.portrait.and.arrow.right")
                                 .font(.subheadline)
-                                .foregroundStyle(.red)
+                                .foregroundStyle(.orange)
                         }
                     }
                     .disabled(isSigningOut)
@@ -894,10 +886,12 @@ struct ProfileTabView: View {
                                 ProgressView().scaleEffect(0.85)
                                 Text("Account wird gelöscht…")
                                     .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
                         } else {
                             Label("Account löschen", systemImage: "trash")
                                 .font(.subheadline)
+                                .foregroundStyle(.red)
                         }
                     }
                     .disabled(isDeletingAccount)
@@ -912,10 +906,8 @@ struct ProfileTabView: View {
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(.system(.footnote, design: .rounded).weight(.semibold))
                 .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.8)
                 .padding(.horizontal, 2)
 
             VStack(alignment: .leading, spacing: 12) {
@@ -1061,7 +1053,12 @@ private struct EditProfileSheet: View {
                 // Vibes
                 Section {
                     EditChipGrid(
-                        options: aiGeneratedVibes + vibeOptions.filter { !aiGeneratedVibes.contains($0) },
+                        options: {
+                            let pool = aiGeneratedVibes + vibeOptions.filter { !aiGeneratedVibes.contains($0) }
+                            let sel = selectedVibes.sorted()
+                            let unsel = pool.filter { !selectedVibes.contains($0) }
+                            return sel + Array(unsel.prefix(max(0, 8 - sel.count)))
+                        }(),
                         selected: $selectedVibes,
                         brand: brand,
                         aiItems: Set(aiGeneratedVibes)
@@ -1075,7 +1072,12 @@ private struct EditProfileSheet: View {
                 // Hooks
                 Section {
                     EditChipGrid(
-                        options: aiGeneratedHooks + hookOptions.filter { !aiGeneratedHooks.contains($0) },
+                        options: {
+                            let pool = aiGeneratedHooks + hookOptions.filter { !aiGeneratedHooks.contains($0) }
+                            let sel = selectedHooks.sorted()
+                            let unsel = pool.filter { !selectedHooks.contains($0) }
+                            return sel + Array(unsel.prefix(max(0, 6 - sel.count)))
+                        }(),
                         selected: $selectedHooks,
                         brand: brand,
                         aiItems: Set(aiGeneratedHooks)
@@ -1128,7 +1130,7 @@ private struct EditProfileSheet: View {
             bio: bio.nilIfEmpty,
             interests: Array(selectedInterests),
             promptAnswers: nil,
-            maxHooks: 8,
+            maxHooks: 5,
             maxVibes: 8
         )
 
@@ -1206,12 +1208,13 @@ private struct FlowChips: View {
             ForEach(items, id: \.self) { item in
                 Text(item)
                     .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(1)
                     .padding(.vertical, 7)
                     .padding(.horizontal, 14)
-                    .background(brand.opacity(0.10))
+                    .background(brand.opacity(0.08))
                     .foregroundStyle(brand)
                     .clipShape(Capsule())
+                    .overlay(Capsule().stroke(brand.opacity(0.28), lineWidth: 1))
             }
         }
     }
@@ -1747,7 +1750,7 @@ struct OtherUserProfileSheet: View {
             if !vm.hooks.isEmpty {
                 contentSection("Gesprächsstarter") {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(vm.hooks, id: \.self) { hook in
+                        ForEach(vm.hooks.prefix(3), id: \.self) { hook in
                             HStack(spacing: 10) {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(brand)
@@ -1941,5 +1944,49 @@ struct ManagePhotosSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - UsageRow
+
+private struct UsageRow: View {
+    let icon: String
+    let label: String
+    let used: Int
+    let total: Int
+    let color: Color
+
+    private var remaining: Int { max(0, total - used) }
+    private var progress: Double { total > 0 ? min(1, Double(used) / Double(total)) : 0 }
+    private var isEmpty: Bool { remaining == 0 }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isEmpty ? .secondary : color)
+                    .frame(width: 18)
+                Text(label)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(isEmpty ? "Aufgebraucht" : "\(remaining) / \(total) übrig")
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
+                    .foregroundStyle(isEmpty ? .orange : .secondary)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color(.systemGray5))
+                        .frame(height: 5)
+                    Capsule()
+                        .fill(isEmpty ? Color.orange : color)
+                        .frame(width: max(0, geo.size.width * (1 - progress)), height: 5)
+                }
+            }
+            .frame(height: 5)
+        }
+        .padding(.vertical, 2)
     }
 }

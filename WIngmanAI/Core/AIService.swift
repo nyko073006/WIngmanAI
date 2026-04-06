@@ -37,9 +37,10 @@ final class AIService {
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         guard (200...299).contains(http.statusCode) else {
-            let raw = String(data: data, encoding: .utf8) ?? "<no body>"
+            struct ErrorBody: Decodable { let error: String? }
+            let bodyMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
             throw NSError(domain: "AIService", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode): \(raw)"])
+                          userInfo: [NSLocalizedDescriptionKey: bodyMsg ?? "HTTP \(http.statusCode)"])
         }
         return data
     }

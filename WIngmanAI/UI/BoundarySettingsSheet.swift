@@ -15,6 +15,13 @@ struct BoundaryPreferences: Codable, Equatable {
         case commStyle = "comm_style"
         case dealbreakers
     }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        relationshipGoal = try c.decodeIfPresent(String.self, forKey: .relationshipGoal)
+        commStyle        = try c.decodeIfPresent(String.self, forKey: .commStyle)
+        dealbreakers     = (try? c.decodeIfPresent([String].self, forKey: .dealbreakers)) ?? []
+    }
 }
 
 // MARK: - BoundarySettingsSheet

@@ -33,7 +33,7 @@ final class PremiumService: ObservableObject {
         "com.wingmanai.elite.woechentlich",
         "com.wingmanai.elite.monatlich",
         "com.wingmanai.elite.vierteljaehrlich",
-        "com.wingmanai.premium.halbjaehrlich"
+        "com.wingmanai.elite.halbjaehrlich"
     ]
 
     var isPremium: Bool { currentTier.isPremium }

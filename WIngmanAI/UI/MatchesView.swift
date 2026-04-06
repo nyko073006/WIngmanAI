@@ -111,9 +111,8 @@ struct MatchesView: View {
                             viewStyle = (viewStyle == "list") ? "grid" : "list"
                         } label: {
                             Image(systemName: viewStyle == "list" ? "square.grid.2x2" : "list.bullet")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(.primary)
-                                .frame(width: 36, height: 36)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -305,12 +304,13 @@ struct MatchesView: View {
                     let activeMatches = vm.items.filter { $0.lastMessageText != nil }
                     
                     if !newMatches.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 10) {
                             Text("Neue Matches")
-                                .font(.headline)
+                                .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
-                                .padding(.top, 4) // Smaller top padding
-                            
+                                .padding(.top, 8)
+
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
                                     ForEach(newMatches, id: \.id) { item in
@@ -323,18 +323,17 @@ struct MatchesView: View {
                                 .padding(.horizontal, 16)
                             }
                         }
-                        .padding(.bottom, 8)
-                        
-                        Divider()
-                            .padding(.leading, 16)
+                        .padding(.bottom, 4)
                     }
-                    
+
                     if !activeMatches.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Nachrichten")
-                                .font(.headline)
+                                .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .padding(.top, newMatches.isEmpty ? 8 : 16)
+                                .padding(.bottom, 8)
                             
                             LazyVStack(spacing: 0) {
                                 ForEach(Array(activeMatches.enumerated()), id: \.element.id) { index, item in
@@ -738,15 +737,15 @@ private struct MatchRow: View {
                         onClosureTap?()
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "clock.badge.exclamationmark")
-                                .font(.system(size: 10, weight: .semibold))
+                            Image(systemName: "clock")
+                                .font(.system(size: 10, weight: .medium))
                             Text("\(days) Tage still · Abschließen?")
                                 .font(.caption2.weight(.medium))
                         }
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color(.secondaryLabel))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.orange.opacity(0.1), in: Capsule())
+                        .background(Color(.tertiarySystemFill), in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -933,25 +932,25 @@ private struct NewMatchCardTile: View {
                             .padding(10)
                     }
                 }
-                .frame(width: 85, height: 115)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                
+                .frame(width: 95, height: 128)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+
                 // Outline border for new matches
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 14)
                     .stroke(
                         LinearGradient(colors: [brand, brandAlt], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        lineWidth: 2
+                        lineWidth: 2.5
                     )
 
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0.4),
-                        .init(color: .black.opacity(0.85), location: 1.0)
+                        .init(color: .clear, location: 0.38),
+                        .init(color: .black.opacity(0.82), location: 1.0)
                     ],
                     startPoint: .top, endPoint: .bottom
                 )
-                .frame(width: 85, height: 115)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 95, height: 128)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
                 
                 // Name
                 Text(item.name.components(separatedBy: " ").first ?? item.name)
@@ -961,8 +960,8 @@ private struct NewMatchCardTile: View {
                     .padding(.horizontal, 6)
                     .padding(.bottom, 8)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: brand.opacity(0.15), radius: 6, y: 2)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: brand.opacity(0.18), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
     }

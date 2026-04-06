@@ -32,9 +32,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 2. Rate limit (disabled during dev — re-enable before launch) ──────
-    // TODO: uncomment before App Store launch
-    // await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
+    // ── 2. Rate limit ──────────────────────────────────────────────────────
+    const { data: allowed } = await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
+    if (!allowed) return new Response(JSON.stringify({ error: "Daily AI limit reached. Upgrade to get more." }), { status: 429, headers: { "content-type": "application/json" } });
 
     // ── 3. AI call ────────────────────────────────────────────────────────
     const input = await req.json();

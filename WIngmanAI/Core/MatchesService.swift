@@ -34,7 +34,7 @@ final class MatchesService {
             .or("user_low.eq.\(myId.uuidString),user_high.eq.\(myId.uuidString)")
             .order("last_message_at", ascending: false, nullsFirst: false)
             .order("created_at", ascending: false)
-            .limit(200)
+            .limit(250)
             .execute()
             .value
 

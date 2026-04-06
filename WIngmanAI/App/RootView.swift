@@ -120,7 +120,7 @@ struct MainAppTabsView: View {
                 activeChatMatchId = item.id
                 selectedMatch = item
             })
-                .tabItem { Label("Discover", systemImage: "flame.fill") }
+                .tabItem { Label("Discover", systemImage: "sparkles") }
                 .tag(0)
 
             if let myId = auth.session?.user.id {

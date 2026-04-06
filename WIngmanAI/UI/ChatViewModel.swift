@@ -247,7 +247,7 @@ final class ChatViewModel: ObservableObject {
                 )
                 .execute()
         } catch {
-            self.errorText = self.errorText ?? "Read receipt write failed: \(error.localizedDescription)"
+            // silent — read receipts are non-critical
         }
     }
 
@@ -390,7 +390,7 @@ final class ChatViewModel: ObservableObject {
                 .from(bucket).getPublicURL(path: path).absoluteString
             await send(matchId: matchId, senderId: senderId, text: "[IMG]\(publicUrl)")
         } catch {
-            self.errorText = "Bild-Upload fehlgeschlagen: \(error.localizedDescription)"
+            self.errorText = "Bild konnte nicht gesendet werden. \(AppError.userMessage(for: error))"
         }
     }
 
@@ -449,7 +449,7 @@ final class ChatViewModel: ObservableObject {
                 .value
             otherUserId = (match.user_low == myId) ? match.user_high : match.user_low
         } catch {
-            self.errorText = "Wingman: \(error.localizedDescription)"
+            self.errorText = "Wingman konnte nicht gestartet werden. \(AppError.userMessage(for: error))"
             return
         }
 
@@ -491,7 +491,7 @@ final class ChatViewModel: ObservableObject {
             self.wingmanResponse = response
             AnalyticsService.shared.track(.wingmanUsed, properties: ["match_id": matchId.uuidString])
         } catch {
-            self.errorText = "Wingman: \(error.localizedDescription)"
+            self.errorText = "Wingman konnte keine Vorschläge laden. \(AppError.userMessage(for: error))"
         }
     }
 
@@ -523,7 +523,7 @@ final class ChatViewModel: ObservableObject {
             await upsertLastSeen(matchId: matchId)
             await fetchOtherLastSeen(matchId: matchId)
         } catch {
-            self.errorText = error.localizedDescription
+            self.errorText = "Nachrichten konnten nicht geladen werden. \(AppError.userMessage(for: error))"
             self.messages = []
             self.hasMore = false
         }
@@ -562,7 +562,7 @@ final class ChatViewModel: ObservableObject {
             self.hasMore = rows.count >= pageSize
         } catch {
             if Task.isCancelled || (error is CancellationError) { return }
-            self.errorText = error.localizedDescription
+            self.errorText = AppError.userMessage(for: error)
         }
     }
 
@@ -601,7 +601,7 @@ final class ChatViewModel: ObservableObject {
             self.messages.sort { $0.createdAt < $1.createdAt }
         } catch {
             if let cur = self.messages.firstIndex(where: { $0.id == messageId }) {
-                self.messages[cur].status = .failed(error.localizedDescription)
+                self.messages[cur].status = .failed(AppError.userMessage(for: error))
             }
         }
     }
@@ -668,7 +668,7 @@ final class ChatViewModel: ObservableObject {
                     self.messages[idx].status = .failed("Offline – wird gesendet sobald Verbindung besteht")
                 }
             } else if let idx = self.messages.firstIndex(where: { $0.id == tempId }) {
-                self.messages[idx].status = .failed(error.localizedDescription)
+                self.messages[idx].status = .failed(AppError.userMessage(for: error))
             }
         }
     }
