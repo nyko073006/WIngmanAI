@@ -384,8 +384,8 @@ final class DiscoverViewModel: ObservableObject {
                 .execute()
                 .value
             if let r = rows.first {
-                let ageMin = r.age_min ?? 18
-                let ageMax = r.age_max ?? 45
+                let ageMin = max(18, min(r.age_min ?? 18, 78))
+                let ageMax = max(ageMin + 1, min(r.age_max ?? 45, 80)) // always > ageMin
                 let distKm = r.distance_km ?? 50
                 let lookingFor = r.looking_for ?? "_all_"
                 let arr = (r.interested_in_arr ?? []).filter { $0 != "Alle" && $0 != "all" }

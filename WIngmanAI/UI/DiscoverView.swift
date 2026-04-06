@@ -724,7 +724,7 @@ private struct SearchSettingsSheet: View {
                                 Text("Von: \(Int(ageMin))").font(.caption).foregroundStyle(.secondary)
                                 Slider(
                                     value: $ageMin,
-                                    in: 18...Double(max(18, Int(ageMax) - 1)),
+                                    in: 18...max(19.0, ageMax - 1),
                                     step: 1
                                 ) { _ in if ageMin >= ageMax { ageMax = min(80, ageMin + 1) } }
                                 .tint(brandColor)
@@ -733,7 +733,7 @@ private struct SearchSettingsSheet: View {
                                 Text("Bis: \(Int(ageMax))").font(.caption).foregroundStyle(.secondary)
                                 Slider(
                                     value: $ageMax,
-                                    in: Double(min(80, Int(ageMin) + 1))...80,
+                                    in: min(79.0, ageMin + 1)...80,
                                     step: 1
                                 ) { _ in if ageMax <= ageMin { ageMin = max(18, ageMax - 1) } }
                                 .tint(brandColor)
@@ -910,8 +910,11 @@ private struct SearchSettingsSheet: View {
     // MARK: - State sync
 
     private func syncFromVM() {
-        ageMin = Double(vm.filterAgeMin)
-        ageMax = Double(vm.filterAgeMax)
+        // Guard: ageMax must always be > ageMin to avoid Slider precondition crash
+        let rawMin = max(18, vm.filterAgeMin)
+        let rawMax = max(rawMin + 1, min(80, vm.filterAgeMax))
+        ageMin = Double(rawMin)
+        ageMax = Double(rawMax)
         unlimitedDistance = vm.filterDistanceKm >= 9999
         distanceKm = unlimitedDistance ? 100 : Double(vm.filterDistanceKm)
         lookingFor = vm.filterLookingFor
