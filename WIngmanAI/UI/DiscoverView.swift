@@ -67,7 +67,7 @@ struct DiscoverView: View {
                         Image("colored-logo-ohne-schrift")
                             .resizable()
                             .scaledToFit()
-                            .frame(height: 42)
+                            .frame(height: 36)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 14) {

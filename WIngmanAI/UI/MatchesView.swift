@@ -104,7 +104,7 @@ struct MatchesView: View {
                         Image("colored-logo-ohne-schrift")
                             .resizable()
                             .scaledToFit()
-                            .frame(height: 42)
+                            .frame(height: 36)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {

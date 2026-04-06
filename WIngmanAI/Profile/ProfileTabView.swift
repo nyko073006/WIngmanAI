@@ -502,7 +502,7 @@ struct ProfileTabView: View {
                     Image("colored-logo-ohne-schrift")
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 32)
+                        .frame(height: 36)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
