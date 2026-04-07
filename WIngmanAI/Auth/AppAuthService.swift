@@ -74,6 +74,10 @@ final class AppAuthService: ObservableObject {
         self.session = s
         self.user = s?.user
         // AIService fetches the token dynamically now.
+        // Reload subscription tier from DB whenever a valid session arrives.
+        if s != nil {
+            Task { await PremiumService.shared.reloadTier() }
+        }
     }
 
     func updateLastActive() async {

@@ -11,6 +11,9 @@ import Supabase
 final class UsageLimitService: ObservableObject {
     static let shared = UsageLimitService()
 
+    // Forward PremiumService tier changes → re-render any observing view
+    private var tierCancellable: AnyCancellable?
+
     // MARK: - Tier Limits
 
     struct Limits {
@@ -45,7 +48,13 @@ final class UsageLimitService: ObservableObject {
     private var bonusSwipesKey: String   { userPrefix + "bonus_swipes" }
     private var bonusSwipesDateKey: String { userPrefix + "bonus_swipes_date" }
 
-    private init() {}
+    private init() {
+        // When PremiumService.currentTier changes (e.g. DB load completes),
+        // tell SwiftUI to re-evaluate all views observing UsageLimitService.
+        tierCancellable = PremiumService.shared.$currentTier
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+    }
 
     // MARK: - Active Limits
 

@@ -51,7 +51,10 @@ final class PremiumService: ObservableObject {
     private init() {
         currentTier = Tier(rawValue: UserDefaults.standard.string(forKey: tierKey) ?? "") ?? .none
         Task { await loadProducts() }
-        Task { await refreshEntitlements() }
+        Task {
+            await refreshEntitlements()
+            await loadTierFromSupabase()
+        }
     }
 
     func loadProducts() async {
@@ -83,6 +86,11 @@ final class PremiumService: ObservableObject {
         await refreshEntitlements(syncToServer: true)
     }
 
+    /// Call after auth session is established to pick up DB-granted tiers.
+    func reloadTier() async {
+        await loadTierFromSupabase()
+    }
+
     func refreshEntitlements(syncToServer: Bool = false) async {
         var highestTier: Tier = .none
         for await result in Transaction.currentEntitlements {
@@ -94,7 +102,12 @@ final class PremiumService: ObservableObject {
                 highestTier = .premium
             }
         }
-        setTier(highestTier, syncToServer: syncToServer)
+        // Only apply if StoreKit found an active subscription, OR this is an
+        // explicit sync (restore/purchase). Without this guard, a cold launch with
+        // no StoreKit subscription would overwrite a DB-granted tier with .none.
+        if highestTier != .none || syncToServer {
+            setTier(highestTier, syncToServer: syncToServer)
+        }
     }
 
     private func updateTier(for productID: String) {
@@ -123,10 +136,41 @@ final class PremiumService: ObservableObject {
             try await SupabaseClientProvider.shared.client
                 .from("profiles")
                 .update(["subscription_tier": tier == .none ? "free" : tier.rawValue])
-                .eq("id", value: userID.uuidString)
+                .eq("user_id", value: userID.uuidString)
                 .execute()
         } catch {
             print("PremiumService.syncTierToSupabase:", error)
+        }
+    }
+
+    /// Reads subscription_tier from Supabase on app launch.
+    /// Allows manually setting a tier via the DB (e.g. for testing/gifting).
+    /// Only upgrades local tier — StoreKit is still authoritative for downgrades.
+    private func loadTierFromSupabase() async {
+        guard let userID = try? await SupabaseClientProvider.shared.client.auth.session.user.id else { return }
+        struct Row: Decodable { let subscription_tier: String? }
+        do {
+            let rows: [Row] = try await SupabaseClientProvider.shared.client
+                .from("profiles")
+                .select("subscription_tier")
+                .eq("user_id", value: userID.uuidString)
+                .limit(1)
+                .execute()
+                .value
+            guard let tierStr = rows.first?.subscription_tier else { return }
+            let dbTier: Tier = {
+                switch tierStr {
+                case "elite":   return .elite
+                case "premium": return .premium
+                default:        return .none
+                }
+            }()
+            // Only upgrade — if StoreKit already granted a higher tier, keep it
+            if dbTier.isElite || (dbTier.isPremium && !currentTier.isPremium) {
+                setTier(dbTier, syncToServer: false)
+            }
+        } catch {
+            print("PremiumService.loadTierFromSupabase:", error)
         }
     }
 
