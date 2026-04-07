@@ -116,6 +116,6 @@ struct AppError: Identifiable, Equatable, Sendable {
 
         // 5. Generic fallback — show raw error during beta for diagnosis
         print("[AppError] Unhandled error falling back to generic message.")
-        return "Fehler: \(error.localizedDescription)"
+        return "Etwas ist schiefgelaufen. Bitte versuche es erneut."
     }
 }
