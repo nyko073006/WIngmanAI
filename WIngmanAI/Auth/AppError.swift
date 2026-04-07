@@ -114,8 +114,8 @@ struct AppError: Identifiable, Equatable, Sendable {
             return "Zugriff verweigert. Bitte melde dich erneut an."
         }
 
-        // 5. Generic fallback — raw description helps diagnose in TestFlight logs
+        // 5. Generic fallback — show raw error during beta for diagnosis
         print("[AppError] Unhandled error falling back to generic message.")
-        return "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+        return "Fehler: \(error.localizedDescription)"
     }
 }
