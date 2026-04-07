@@ -16,11 +16,19 @@ final class AIService {
     // static var accessToken: String?
 
     private func callFunction(_ name: String, body: Data) async throws -> Data {
-        // Dynamically get the current session so we NEVER use a stale token
-        let session = try? await SupabaseClientProvider.shared.client.auth.session
-        let token = session?.accessToken
-        
-        print("[AIService] callFunction=\(name) token=\(token == nil ? "NIL ❌" : "OK ✅ (\(token!.prefix(20))...)")")
+        return try await callFunctionWithToken(name, body: body, isRetry: false)
+    }
+
+    private func callFunctionWithToken(_ name: String, body: Data, isRetry: Bool) async throws -> Data {
+        // Fetch session — on first try use cached, on retry force-refresh
+        let token: String?
+        if isRetry {
+            token = try? await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
+        } else {
+            token = try? await SupabaseClientProvider.shared.client.auth.session.accessToken
+        }
+
+        print("[AIService] callFunction=\(name) retry=\(isRetry) token=\(token == nil ? "NIL ❌" : "OK ✅")")
 
         let url = SupabaseClientProvider.shared.supabaseURL
             .appendingPathComponent("functions/v1/\(name)")
@@ -36,6 +44,12 @@ final class AIService {
 
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+
+        // 401 → try once more with a fresh token
+        if http.statusCode == 401, !isRetry {
+            return try await callFunctionWithToken(name, body: body, isRetry: true)
+        }
+
         guard (200...299).contains(http.statusCode) else {
             struct ErrorBody: Decodable { let error: String? }
             let bodyMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
