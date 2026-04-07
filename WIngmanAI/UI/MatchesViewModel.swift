@@ -73,6 +73,7 @@ final class MatchesViewModel: ObservableObject {
                 .select("user_id,url")
                 .in("user_id", values: otherIdsStr)
                 .eq("is_primary", value: true)
+                .eq("is_snapshot", value: false)
                 .execute()
                 .value
 

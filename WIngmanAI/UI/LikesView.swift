@@ -480,6 +480,7 @@ struct LikesView: View {
                 .from("photos")
                 .select("user_id,url,is_primary,sort_order")
                 .in("user_id", values: Array(ids))
+                .eq("is_snapshot", value: false)
                 .order("sort_order", ascending: true)
                 .execute()
                 .value

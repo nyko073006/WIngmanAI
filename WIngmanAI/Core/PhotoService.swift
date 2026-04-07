@@ -82,6 +82,7 @@ final class PhotoService {
             .from("photos")
             .select("user_id,url,sort_order,created_at")
             .in("user_id", values: userIds.map { $0.uuidString })
+            .eq("is_snapshot", value: false)
             .order("sort_order", ascending: true)
             .order("created_at", ascending: true)
             .execute()

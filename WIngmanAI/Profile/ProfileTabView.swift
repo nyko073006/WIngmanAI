@@ -128,6 +128,7 @@ final class ProfileViewModel: ObservableObject {
                 .from("photos")
                 .select("id,url,is_primary,sort_order,is_snapshot")
                 .eq("user_id", value: userId.uuidString)
+                .eq("is_snapshot", value: false)
                 .order("sort_order", ascending: true)
                 .execute()
                 .value
@@ -1526,6 +1527,7 @@ final class OtherUserProfileViewModel: ObservableObject {
                 .from("photos")
                 .select("url,is_primary,sort_order")
                 .eq("user_id", value: userId.uuidString)
+                .eq("is_snapshot", value: false)
                 .order("sort_order", ascending: true).execute().value
                 
             let (rows, dbPhotos) = try await (rowsTask, dbPhotosTask)
@@ -1569,6 +1571,8 @@ struct OtherUserProfileSheet: View {
     @State private var fullscreenPhotoUrl: URL? = nil
     @State private var showBlockAlert = false
     @State private var showReportDialog = false
+    @State private var moderationError: AppError? = nil
+    @State private var pendingReportReason: String? = nil
 
     var body: some View {
         Group {
@@ -1588,13 +1592,31 @@ struct OtherUserProfileSheet: View {
             }
         }
         .task { await vm.load(userId: userId) }
+        .alert(
+            moderationError?.title ?? "Fehler",
+            isPresented: Binding(
+                get: { moderationError != nil },
+                set: { if !$0 { moderationError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { moderationError = nil }
+        } message: {
+            Text(moderationError?.message ?? "")
+        }
         .alert("Blockieren?", isPresented: $showBlockAlert) {
             Button("Blockieren", role: .destructive) {
                 guard let myId = auth.session?.user.id else { return }
                 Task {
-                    try? await SwipeService.shared.block(blockerId: myId, blockedId: userId)
-                    onBlockOrReport?()
-                    dismiss()
+                    do {
+                        try await SwipeService.shared.block(blockerId: myId, blockedId: userId)
+                        onBlockOrReport?()
+                        dismiss()
+                    } catch {
+                        moderationError = AppError(
+                            title: "Blockieren fehlgeschlagen",
+                            message: AppError.userMessage(for: error)
+                        )
+                    }
                 }
             }
             Button("Abbrechen", role: .cancel) {}
@@ -1604,15 +1626,50 @@ struct OtherUserProfileSheet: View {
         .confirmationDialog("Melden", isPresented: $showReportDialog, titleVisibility: .visible) {
             ForEach(["Spam", "Belästigung", "Fake-Profil", "Unangemessene Fotos", "Sonstiges"], id: \.self) { reason in
                 Button(reason) {
-                    guard let myId = auth.session?.user.id else { return }
-                    Task {
-                        try? await SwipeService.shared.report(reporterId: myId, reportedId: userId, reason: reason)
-                        onBlockOrReport?()
-                        dismiss()
-                    }
+                    pendingReportReason = reason
                 }
             }
             Button("Abbrechen", role: .cancel) {}
+        }
+        .confirmationDialog("Auch blockieren?", isPresented: Binding(
+            get: { pendingReportReason != nil },
+            set: { if !$0 { pendingReportReason = nil } }
+        ), titleVisibility: .visible) {
+            Button("Nur melden") {
+                guard let reason = pendingReportReason else { return }
+                submitReport(reason: reason, alsoBlock: false)
+            }
+            Button("Melden und blockieren", role: .destructive) {
+                guard let reason = pendingReportReason else { return }
+                submitReport(reason: reason, alsoBlock: true)
+            }
+            Button("Abbrechen", role: .cancel) { pendingReportReason = nil }
+        } message: {
+            Text("Wenn du auch blockierst, wird dir dieser Nutzer nicht mehr angezeigt.")
+        }
+    }
+
+    private func submitReport(reason: String, alsoBlock: Bool) {
+        guard let myId = auth.session?.user.id else {
+            pendingReportReason = nil
+            return
+        }
+        pendingReportReason = nil
+
+        Task {
+            do {
+                try await SwipeService.shared.report(reporterId: myId, reportedId: userId, reason: reason)
+                if alsoBlock {
+                    try await SwipeService.shared.block(blockerId: myId, blockedId: userId)
+                    onBlockOrReport?()
+                }
+                dismiss()
+            } catch {
+                moderationError = AppError(
+                    title: "Melden fehlgeschlagen",
+                    message: AppError.userMessage(for: error)
+                )
+            }
         }
     }
 

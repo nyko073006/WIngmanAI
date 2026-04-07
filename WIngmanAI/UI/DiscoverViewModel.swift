@@ -34,6 +34,7 @@ final class DiscoverViewModel: ObservableObject {
     // Core paging state
     @Published private(set) var profiles: [PublicProfile] = []
     private var seenUserIds: Set<UUID> = []
+    private var blockedAndReportedIds: Set<UUID> = []
     private var hasMore: Bool = true
     private var cursorUpdatedAt: Date? = nil
     private var cursorUserId: UUID? = nil
@@ -99,6 +100,7 @@ final class DiscoverViewModel: ObservableObject {
         primaryPhotoByUserId = [:]
         allPhotosByUserId = [:]
         seenUserIds = []
+        blockedAndReportedIds = []
         hasMore = true
         cursorUpdatedAt = nil
         cursorUserId = nil
@@ -108,7 +110,17 @@ final class DiscoverViewModel: ObservableObject {
         matchedUserPhotoUrl = nil
         isRelaxed = false
         lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+        await loadBlockedAndReportedIds(myUserId: myUserId)
         await load(myUserId: myUserId)
+    }
+
+    private func loadBlockedAndReportedIds(myUserId: UUID) async {
+        struct BlockRow: Decodable { let blocked_id: UUID }
+        struct ReportRow: Decodable { let reported_id: UUID }
+        let client = SupabaseClientProvider.shared.client
+        let blocks = (try? await client.from("blocks").select("blocked_id").eq("blocker_id", value: myUserId.uuidString).execute().value as [BlockRow]) ?? []
+        let reports = (try? await client.from("reports").select("reported_id").eq("reporter_id", value: myUserId.uuidString).execute().value as [ReportRow]) ?? []
+        blockedAndReportedIds = Set(blocks.map(\.blocked_id)).union(reports.map(\.reported_id))
     }
 
     func setRelaxed(_ value: Bool, myUserId: UUID) async {
@@ -180,7 +192,7 @@ final class DiscoverViewModel: ObservableObject {
             )
         }
 
-        let newOnes = candidates.filter { !seenUserIds.contains($0.id) && !existingIds.contains($0.id) }
+        let newOnes = candidates.filter { !seenUserIds.contains($0.id) && !existingIds.contains($0.id) && !blockedAndReportedIds.contains($0.id) }
         if !newOnes.isEmpty {
             self.profiles.append(contentsOf: newOnes)
             self.seenUserIds.formUnion(newOnes.map { $0.id })
@@ -223,6 +235,7 @@ final class DiscoverViewModel: ObservableObject {
                 .from("photos")
                 .select("user_id,url,sort_order,is_primary")
                 .in("user_id", values: userIds.map { $0.uuidString })
+                .eq("is_snapshot", value: false)
                 .order("sort_order", ascending: true)
                 .execute()
                 .value
@@ -344,6 +357,15 @@ final class DiscoverViewModel: ObservableObject {
         }
 
         lastSwipedProfile = nil; lastSwipedPhotoUrls = []; lastSwipeWasLike = false
+    }
+
+    /// Removes a user from the swipe stack without recording a swipe (e.g. after block/report from profile sheet).
+    func removeFromStack(userId: UUID) {
+        blockedAndReportedIds.insert(userId)
+        profiles.removeAll { $0.id == userId }
+        primaryPhotoByUserId[userId] = nil
+        allPhotosByUserId[userId] = nil
+        seenUserIds.insert(userId)
     }
 
     func blockUser(myUserId: UUID, targetId: UUID) async {
