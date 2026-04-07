@@ -183,7 +183,7 @@ struct LikesView: View {
 
                 if isRevealed {
                     // Name / age / city badge on card
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(liker.displayName)
                                 .font(.system(.title, design: .rounded).weight(.bold))
@@ -198,6 +198,23 @@ struct LikesView: View {
                             Label(city, systemImage: "mappin.fill")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.white.opacity(0.72))
+                        }
+                        // Intro message bubble
+                        if let msg = liker.introMessage, !msg.isEmpty {
+                            HStack(spacing: 6) {
+                                Image(systemName: "message.fill")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.85))
+                                Text(msg)
+                                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .padding(.top, 4)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -423,6 +440,7 @@ struct LikesView: View {
             struct SwipeRow: Decodable {
                 let swiper_id: UUID
                 let created_at: String?
+                let intro_message: String?
             }
             let client = SupabaseClientProvider.shared.client
             let usageLimits = UsageLimitService.shared
@@ -430,7 +448,7 @@ struct LikesView: View {
 
             var query = client
                 .from("swipes")
-                .select("swiper_id,created_at")
+                .select("swiper_id,created_at,intro_message")
                 .eq("target_id", value: myId.uuidString)
                 .eq("is_like", value: true)
 
@@ -505,7 +523,8 @@ struct LikesView: View {
                     photoUrl: photoMap[swipe.swiper_id],
                     bio: prof.bio ?? "",
                     city: prof.city,
-                    birthdate: prof.birthdate
+                    birthdate: prof.birthdate,
+                    introMessage: swipe.intro_message
                 )
             }
         } catch {
@@ -548,6 +567,7 @@ struct LikerProfile: Identifiable {
     let bio: String
     let city: String?
     let birthdate: String?
+    var introMessage: String? = nil
 
     var age: Int? {
         guard let bd = birthdate else { return nil }

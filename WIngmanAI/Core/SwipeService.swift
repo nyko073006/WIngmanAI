@@ -19,12 +19,57 @@ final class SwipeService {
         let is_like: Bool
     }
 
+    struct SwipeUpsertWithMessage: Encodable {
+        let swiper_id: UUID
+        let target_id: UUID
+        let is_like: Bool
+        let intro_message: String
+    }
+
     func upsertSwipe(swiperId: UUID, targetId: UUID, isLike: Bool) async throws {
         let payload = SwipeUpsert(swiper_id: swiperId, target_id: targetId, is_like: isLike)
-
         _ = try await client
             .from("swipes")
             .upsert(payload, onConflict: "swiper_id,target_id")
+            .execute()
+    }
+
+    func upsertSwipeWithMessage(swiperId: UUID, targetId: UUID, message: String) async throws {
+        let payload = SwipeUpsertWithMessage(swiper_id: swiperId, target_id: targetId, is_like: true, intro_message: message)
+        _ = try await client
+            .from("swipes")
+            .upsert(payload, onConflict: "swiper_id,target_id")
+            .execute()
+    }
+
+    /// Returns the match id if a mutual match already exists, else nil.
+    func matchIdIfExists(myUserId: UUID, otherUserId: UUID) async -> UUID? {
+        let low = min(myUserId, otherUserId)
+        let high = max(myUserId, otherUserId)
+        struct Row: Decodable { let id: UUID }
+        do {
+            let rows: [Row] = try await client
+                .from("matches")
+                .select("id")
+                .eq("user_low", value: low.uuidString)
+                .eq("user_high", value: high.uuidString)
+                .limit(1)
+                .execute()
+                .value
+            return rows.first?.id
+        } catch { return nil }
+    }
+
+    /// Sends a message into a match (used after a match is confirmed).
+    func sendMessage(matchId: UUID, senderId: UUID, text: String) async throws {
+        let payload: [String: String] = [
+            "match_id": matchId.uuidString,
+            "sender_id": senderId.uuidString,
+            "text": text
+        ]
+        _ = try await client
+            .from("messages")
+            .insert([payload])
             .execute()
     }
 

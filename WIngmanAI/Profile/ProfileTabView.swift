@@ -1257,6 +1257,184 @@ private struct _FlowLayout: Layout {
     }
 }
 
+// MARK: - Tappable Flow Chips (for First Date Vibes in other user's profile)
+
+private struct FlowTappableChips: View {
+    let items: [String]
+    let brand: Color
+    let creditsRequired: Int
+    let canAfford: Bool
+    let onTap: (String) -> Void
+
+    var body: some View {
+        _FlowLayout(spacing: 8, rowSpacing: 8) {
+            ForEach(items, id: \.self) { item in
+                Button { if canAfford { onTap(item) } } label: {
+                    HStack(spacing: 5) {
+                        Text(item)
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .lineLimit(1)
+                        if canAfford {
+                            HStack(spacing: 2) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 9, weight: .bold))
+                                Text("\(creditsRequired)")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            .foregroundStyle(brand.opacity(0.7))
+                        }
+                    }
+                    .padding(.vertical, 7)
+                    .padding(.horizontal, 14)
+                    .background(canAfford ? brand.opacity(0.10) : Color(.systemGray6))
+                    .foregroundStyle(canAfford ? brand : Color(.systemGray3))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(canAfford ? brand.opacity(0.35) : Color.clear, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canAfford)
+            }
+        }
+    }
+}
+
+// MARK: - Vibe Message Confirmation Sheet
+
+private struct VibeMessageSheet: View {
+    let vibe: String
+    let targetName: String
+    let remainingCredits: Int
+    @Binding var isSending: Bool
+    @Binding var sentSuccess: Bool
+    let onSend: () -> Void
+    let onDismiss: () -> Void
+
+    private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
+    private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Drag handle
+            Capsule()
+                .fill(Color(.systemGray4))
+                .frame(width: 40, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+
+            if sentSuccess {
+                // Success state
+                VStack(spacing: 20) {
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient(colors: [brand.opacity(0.15), brandAlt.opacity(0.08)],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 90, height: 90)
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 38))
+                            .foregroundStyle(LinearGradient(colors: [brand, brandAlt],
+                                                            startPoint: .top, endPoint: .bottom))
+                    }
+                    VStack(spacing: 8) {
+                        Text("Like gesendet! 💌")
+                            .font(.system(.title3, design: .rounded).weight(.bold))
+                        Text("\(targetName) sieht deine Nachricht in ihren/seinen Likes.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    Button("Fertig") { onDismiss() }
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(LinearGradient(colors: [brand, brandAlt],
+                                                    startPoint: .leading, endPoint: .trailing))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .padding(.horizontal, 28)
+                .padding(.bottom, 40)
+            } else {
+                // Confirmation state
+                VStack(spacing: 24) {
+                    VStack(spacing: 8) {
+                        Text("Like mit Nachricht")
+                            .font(.system(.title3, design: .rounded).weight(.bold))
+                        Text("Deine Nachricht wird \(targetName) direkt\nin ihren/seinen Likes angezeigt.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    // Message bubble preview
+                    HStack {
+                        Spacer()
+                        Text(vibe)
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(LinearGradient(colors: [brand, brandAlt],
+                                                       startPoint: .leading, endPoint: .trailing))
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .shadow(color: brand.opacity(0.25), radius: 8, y: 4)
+                    }
+                    .padding(.horizontal, 24)
+
+                    // Credits info
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .font(.footnote.weight(.semibold))
+                        Text("5 AI-Credits · du hast noch \(remainingCredits) übrig")
+                            .font(.footnote)
+                    }
+                    .foregroundStyle(remainingCredits >= 5 ? brand : Color.orange)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background((remainingCredits >= 5 ? brand : Color.orange).opacity(0.08))
+                    .clipShape(Capsule())
+
+                    VStack(spacing: 10) {
+                        // Send button
+                        Button {
+                            guard !isSending else { return }
+                            onSend()
+                        } label: {
+                            ZStack {
+                                LinearGradient(colors: [brand, brandAlt],
+                                               startPoint: .leading, endPoint: .trailing)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .shadow(color: brand.opacity(0.35), radius: 10, y: 5)
+                                if isSending {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "heart.fill")
+                                        Text("Like senden")
+                                            .font(.headline.weight(.bold))
+                                    }
+                                    .foregroundStyle(.white)
+                                }
+                            }
+                            .frame(height: 54)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSending || remainingCredits < 5)
+
+                        Button("Abbrechen") { onDismiss() }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 24)
+                }
+                .padding(.bottom, 36)
+            }
+        }
+        .presentationDetents([.height(sentSuccess ? 360 : 460)])
+        .presentationDragIndicator(.hidden)
+        .presentationCornerRadius(28)
+    }
+}
+
 // MARK: - Discovery Settings Sheet
 
 private struct DiscoverySettingsSheet: View {
@@ -1564,6 +1742,7 @@ struct OtherUserProfileSheet: View {
 
     @EnvironmentObject private var auth: AppAuthService
     @StateObject private var vm = OtherUserProfileViewModel()
+    @StateObject private var usageLimits = UsageLimitService.shared
     @Environment(\.dismiss) private var dismiss
 
     private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
@@ -1573,6 +1752,11 @@ struct OtherUserProfileSheet: View {
     @State private var showReportDialog = false
     @State private var moderationError: AppError? = nil
     @State private var pendingReportReason: String? = nil
+    // Like with message (First Date Vibe)
+    @State private var selectedVibe: String? = nil
+    @State private var showVibeSheet = false
+    @State private var vibeSending = false
+    @State private var vibeSentSuccess = false
 
     var body: some View {
         Group {
@@ -1646,6 +1830,44 @@ struct OtherUserProfileSheet: View {
             Button("Abbrechen", role: .cancel) { pendingReportReason = nil }
         } message: {
             Text("Wenn du auch blockierst, wird dir dieser Nutzer nicht mehr angezeigt.")
+        }
+        .sheet(isPresented: $showVibeSheet) {
+            if let vibe = selectedVibe {
+                VibeMessageSheet(
+                    vibe: vibe,
+                    targetName: vm.displayName,
+                    remainingCredits: usageLimits.remainingAI,
+                    isSending: $vibeSending,
+                    sentSuccess: $vibeSentSuccess
+                ) {
+                    guard let myId = auth.session?.user.id else { return }
+                    vibeSending = true
+                    Task {
+                        do {
+                            // Deduct 5 AI credits
+                            for _ in 0..<5 { UsageLimitService.shared.recordAIUse() }
+                            // Record swipe + message
+                            try await SwipeService.shared.upsertSwipeWithMessage(
+                                swiperId: myId, targetId: userId, message: vibe
+                            )
+                            // If already matched → also send as first message
+                            if let matchId = await SwipeService.shared.matchIdIfExists(myUserId: myId, otherUserId: userId) {
+                                try? await SwipeService.shared.sendMessage(matchId: matchId, senderId: myId, text: vibe)
+                            }
+                            vibeSending = false
+                            vibeSentSuccess = true
+                        } catch {
+                            vibeSending = false
+                            selectedVibe = nil
+                            showVibeSheet = false
+                        }
+                    }
+                } onDismiss: {
+                    showVibeSheet = false
+                    selectedVibe = nil
+                    vibeSentSuccess = false
+                }
+            }
         }
     }
 
@@ -1890,7 +2112,26 @@ struct OtherUserProfileSheet: View {
             }
             if !vm.firstDateVibes.isEmpty {
                 contentSection("First Date Vibes") {
-                    FlowChips(items: vm.firstDateVibes, brand: brand.opacity(0.7))
+                    VStack(alignment: .leading, spacing: 8) {
+                        FlowTappableChips(
+                            items: vm.firstDateVibes,
+                            brand: brand,
+                            creditsRequired: 5,
+                            canAfford: usageLimits.remainingAI >= 5
+                        ) { vibe in
+                            selectedVibe = vibe
+                            vibeSentSuccess = false
+                            showVibeSheet = true
+                        }
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.caption2)
+                                .foregroundStyle(brand.opacity(0.7))
+                            Text("Tippe auf einen Vibe – schicke ein Like mit Nachricht (5 Credits)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 
