@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
       "2. No lists, no comma overload.",
       "3. No cringe clichés ('lebe im Moment', 'suche meinen Partner', 'liebe lachen').",
       "4. Sound like a real person texting, not a LinkedIn profile.",
+      "6. CRITICAL: NO Markdown formatting. No **bold**, no *italic*, no bullet points, no headers. Plain text only.",
       "5. CRITICAL: ONLY use interests from context.interests. NEVER invent interests (e.g. coffee, hiking, cooking) that are not in the list. If interests is empty, write something personality-based with zero interest references.",
     ].join(" ");
 

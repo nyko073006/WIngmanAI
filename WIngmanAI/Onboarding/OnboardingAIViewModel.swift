@@ -94,10 +94,29 @@ final class OnboardingAIViewModel: ObservableObject {
     private func sanitize(_ list: [String]) -> [String] {
         Array(
             list
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { stripMarkdown($0).trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
                 .prefix(12)
         )
+    }
+
+    /// Remove common Markdown formatting symbols that GPT sometimes includes.
+    private func stripMarkdown(_ text: String) -> String {
+        var s = text
+        // Bold/italic: **text**, *text*, __text__, _text_
+        s = s.replacingOccurrences(of: "\\*{1,3}([^*]+)\\*{1,3}", with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "_{1,3}([^_]+)_{1,3}", with: "$1", options: .regularExpression)
+        // Headers: ## Title
+        s = s.replacingOccurrences(of: "^#{1,6}\\s*", with: "", options: [.regularExpression, .anchorsMatchLines])
+        // Bullet points at line start: - item, * item, • item
+        s = s.replacingOccurrences(of: "^[\\-\\*•]\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
+        // Numbered lists: 1. item
+        s = s.replacingOccurrences(of: "^\\d+\\.\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
+        // Backtick code spans
+        s = s.replacingOccurrences(of: "`([^`]+)`", with: "$1", options: .regularExpression)
+        // Multiple newlines → single newline
+        s = s.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func friendly(_ error: Error) -> String {
