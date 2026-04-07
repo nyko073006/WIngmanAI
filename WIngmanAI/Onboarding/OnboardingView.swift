@@ -11,6 +11,13 @@ import CoreLocation
 import MapKit
 import UIKit
 
+enum PhotoUploadState: Equatable {
+    case pending
+    case uploading
+    case done
+    case failed(String)
+}
+
 struct OnboardingView: View {
     @EnvironmentObject var auth: AppAuthService
     @StateObject private var ai = OnboardingAIViewModel()
@@ -103,13 +110,12 @@ struct OnboardingView: View {
     @State private var photoUrls: [String] = []
     @State private var primaryPhotoIndex: Int = 0
 
+    // Drag-to-reorder
+    @State private var draggingIndex: Int? = nil
+    @State private var dragOverIndex: Int? = nil
+
     // Upload queue / per-photo state
-    private enum UploadState: Equatable {
-        case pending
-        case uploading
-        case done
-        case failed(String)
-    }
+    typealias UploadState = PhotoUploadState
 
     @State private var photoUploadStates: [UploadState] = []
     @State private var uploadQueue: [(index: Int, data: Data, userId: UUID, isSnapshot: Bool)] = []
@@ -908,6 +914,13 @@ struct OnboardingView: View {
                     }
                 }
 
+                if !photoPreviews.isEmpty {
+                    Text("Gedrückt halten zum Sortieren")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     ForEach(Array(photoPreviews.enumerated()), id: \.offset) { idx, img in
                         ZStack(alignment: .topTrailing) {
@@ -920,13 +933,43 @@ struct OnboardingView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 16)
-                                            .stroke(idx == primaryPhotoIndex ? brand.opacity(0.75) : Color.gray.opacity(0.18),
-                                                    lineWidth: idx == primaryPhotoIndex ? 2 : 1)
+                                            .stroke(
+                                                dragOverIndex == idx ? brand : (idx == primaryPhotoIndex ? brand.opacity(0.75) : Color.gray.opacity(0.18)),
+                                                lineWidth: dragOverIndex == idx ? 2.5 : (idx == primaryPhotoIndex ? 2 : 1)
+                                            )
                                     )
                                     .shadow(color: idx == primaryPhotoIndex ? .black.opacity(0.12) : .clear, radius: 8, y: 4)
                                     .clipped()
                             }
                             .buttonStyle(.plain)
+                            .opacity(draggingIndex == idx ? 0.4 : 1.0)
+                            .scaleEffect(draggingIndex == idx ? 0.95 : 1.0)
+                            .onDrag {
+                                draggingIndex = idx
+                                return NSItemProvider(object: "\(idx)" as NSString)
+                            }
+                            .onDrop(of: [.text], delegate: PhotoDropDelegate(
+                                item: idx,
+                                draggingIndex: $draggingIndex,
+                                dragOverIndex: $dragOverIndex,
+                                photoPreviews: $photoPreviews,
+                                photoUrls: $photoUrls,
+                                photoUploadStates: $photoUploadStates,
+                                primaryPhotoIndex: $primaryPhotoIndex
+                            ))
+
+                            // Primary badge
+                            if idx == primaryPhotoIndex {
+                                Text("Hauptfoto")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(brand)
+                                    .clipShape(Capsule())
+                                    .padding([.bottom, .leading], 6)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            }
 
                             Button { Task { await removePhoto(at: idx) } } label: {
                                 Image(systemName: "xmark")
@@ -2489,6 +2532,8 @@ private struct BioAIDirectionSheet: View {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(t.label)
                                                 .font(.subheadline.weight(.bold))
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.75)
                                             Text(t.subtitle)
                                                 .font(.caption2)
                                                 .lineLimit(2)
@@ -2680,6 +2725,53 @@ private struct BioAIDirectionSheet: View {
         await ai.generateBio(input: input)
         print("[BioAI] result count=\(ai.bioOptions.count), error=\(ai.bioError ?? "none")")
         suggestions = ai.bioOptions
+    }
+}
+
+// MARK: - Photo Drag & Drop
+
+private struct PhotoDropDelegate: DropDelegate {
+    let item: Int
+    @Binding var draggingIndex: Int?
+    @Binding var dragOverIndex: Int?
+    @Binding var photoPreviews: [UIImage]
+    @Binding var photoUrls: [String]
+    @Binding var photoUploadStates: [PhotoUploadState]
+    @Binding var primaryPhotoIndex: Int
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        dragOverIndex = item
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        if dragOverIndex == item { dragOverIndex = nil }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let from = draggingIndex, from != item else {
+            draggingIndex = nil; dragOverIndex = nil
+            return false
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            photoPreviews.move(fromOffsets: IndexSet(integer: from), toOffset: item > from ? item + 1 : item)
+            if photoUrls.indices.contains(from) {
+                photoUrls.move(fromOffsets: IndexSet(integer: from), toOffset: item > from ? item + 1 : item)
+            }
+            if photoUploadStates.indices.contains(from) {
+                photoUploadStates.move(fromOffsets: IndexSet(integer: from), toOffset: item > from ? item + 1 : item)
+            }
+            // Update primary index to follow the moved photo
+            if primaryPhotoIndex == from {
+                primaryPhotoIndex = item > from ? item : item
+            } else if from < primaryPhotoIndex && item >= primaryPhotoIndex {
+                primaryPhotoIndex -= 1
+            } else if from > primaryPhotoIndex && item <= primaryPhotoIndex {
+                primaryPhotoIndex += 1
+            }
+        }
+        draggingIndex = nil; dragOverIndex = nil
+        return true
     }
 }
 

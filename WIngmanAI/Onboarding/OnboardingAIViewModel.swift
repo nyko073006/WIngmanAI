@@ -106,14 +106,20 @@ final class OnboardingAIViewModel: ObservableObject {
         // Bold/italic: **text**, *text*, __text__, _text_
         s = s.replacingOccurrences(of: "\\*{1,3}([^*]+)\\*{1,3}", with: "$1", options: .regularExpression)
         s = s.replacingOccurrences(of: "_{1,3}([^_]+)_{1,3}", with: "$1", options: .regularExpression)
-        // Headers: ## Title
-        s = s.replacingOccurrences(of: "^#{1,6}\\s*", with: "", options: [.regularExpression, .anchorsMatchLines])
-        // Bullet points at line start: - item, * item, • item
-        s = s.replacingOccurrences(of: "^[\\-\\*•]\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
-        // Numbered lists: 1. item
-        s = s.replacingOccurrences(of: "^\\d+\\.\\s+", with: "", options: [.regularExpression, .anchorsMatchLines])
         // Backtick code spans
         s = s.replacingOccurrences(of: "`([^`]+)`", with: "$1", options: .regularExpression)
+        // Headers, bullets, numbered lists — handle line by line
+        let lines = s.components(separatedBy: "\n").map { line -> String in
+            var l = line
+            // ## Header
+            if let r = l.range(of: "^#{1,6}\\s*", options: .regularExpression) { l.removeSubrange(r) }
+            // - bullet or * bullet or • bullet
+            if let r = l.range(of: "^[\\-\\*•]\\s+", options: .regularExpression) { l.removeSubrange(r) }
+            // 1. numbered
+            if let r = l.range(of: "^\\d+\\.\\s+", options: .regularExpression) { l.removeSubrange(r) }
+            return l
+        }
+        s = lines.joined(separator: "\n")
         // Multiple newlines → single newline
         s = s.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
