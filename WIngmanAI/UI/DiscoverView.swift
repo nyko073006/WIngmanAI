@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import Auth
 import Supabase
 #if canImport(UIKit)
@@ -26,6 +27,7 @@ struct IdentifiableUUID: Identifiable {
 struct DiscoverView: View {
     @EnvironmentObject var auth: AppAuthService
     @StateObject private var vm = DiscoverViewModel()
+    @StateObject private var usageLimits = UsageLimitService.shared
 
     /// Called when user taps "Chat starten" on the match overlay.
     /// Parent can use this to switch to the Matches tab and open the chat.
@@ -40,9 +42,12 @@ struct DiscoverView: View {
     @State private var blockAlertTarget: IdentifiableUUID? = nil
     @State private var reportTarget: IdentifiableUUID? = nil
     @State private var reportTargetName: String = ""
+    @State private var pendingReportReason: String? = nil
     @State private var showSearchSettings: Bool = false
     @State private var showLikesView: Bool = false
+    @State private var showSubscription: Bool = false
     @State private var pendingLikesCount: Int = 0
+    @State private var moderationError: String? = nil
 
     @AppStorage("discover_swipe_hint_shown") private var swipeHintShown: Bool = false
 
@@ -180,6 +185,9 @@ struct DiscoverView: View {
         .sheet(isPresented: $vm.showRewindLimitSheet) {
             SubscriptionView()
         }
+        .sheet(isPresented: $showSubscription) {
+            SubscriptionView()
+        }
         .alert("Blockieren?", isPresented: Binding(
             get: { blockAlertTarget != nil },
             set: { if !$0 { blockAlertTarget = nil } }
@@ -198,12 +206,36 @@ struct DiscoverView: View {
             get: { reportTarget != nil },
             set: { if !$0 { reportTarget = nil } }
         ), titleVisibility: .visible) {
-            Button("Spam") { sendReport("Spam") }
-            Button("Belästigung") { sendReport("Belästigung") }
-            Button("Fake-Profil") { sendReport("Fake-Profil") }
-            Button("Unangemessene Fotos") { sendReport("Unangemessene Fotos") }
-            Button("Sonstiges") { sendReport("Sonstiges") }
+            Button("Spam") { pendingReportReason = "Spam" }
+            Button("Belästigung") { pendingReportReason = "Belästigung" }
+            Button("Fake-Profil") { pendingReportReason = "Fake-Profil" }
+            Button("Unangemessene Fotos") { pendingReportReason = "Unangemessene Fotos" }
+            Button("Sonstiges") { pendingReportReason = "Sonstiges" }
             Button("Abbrechen", role: .cancel) { reportTarget = nil }
+        }
+        .confirmationDialog("Auch blockieren?", isPresented: Binding(
+            get: { pendingReportReason != nil },
+            set: { if !$0 { pendingReportReason = nil } }
+        ), titleVisibility: .visible) {
+            Button("Nur melden") {
+                guard let reason = pendingReportReason else { return }
+                sendReport(reason, alsoBlock: false)
+            }
+            Button("Melden und blockieren", role: .destructive) {
+                guard let reason = pendingReportReason else { return }
+                sendReport(reason, alsoBlock: true)
+            }
+            Button("Abbrechen", role: .cancel) { pendingReportReason = nil }
+        } message: {
+            Text("Wenn du auch blockierst, wird dir dieser Nutzer nicht mehr angezeigt.")
+        }
+        .alert("Fehler", isPresented: Binding(
+            get: { moderationError != nil },
+            set: { if !$0 { moderationError = nil } }
+        )) {
+            Button("OK", role: .cancel) { moderationError = nil }
+        } message: {
+            Text(moderationError ?? "")
         }
         .fullScreenCover(isPresented: $vm.showMatchAlert) {
             MatchOverlayView(
@@ -275,12 +307,18 @@ struct DiscoverView: View {
                     .tint(brandColor)
             }
             .padding()
+        } else if !usageLimits.canSwipe() {
+            NoSwipesView(
+                usedToday: usageLimits.current.swipesPerDay - usageLimits.remainingSwipes,
+                dailyLimit: usageLimits.current.swipesPerDay,
+                onUpgrade: { showSubscription = true }
+            )
         } else if vm.currentProfile != nil {
             let stack = Array(vm.profiles.prefix(3))
             GeometryReader { geo in
-            let cardH = max(400, geo.size.height - 140)
+            let cardH = max(460, geo.size.height - 108)
 
-            VStack(spacing: 10) {
+            VStack(spacing: 6) {
                 ZStack {
                     ForEach(Array(stack.enumerated()).reversed(), id: \.element.id) { idx, prof in
                         let isTop = (idx == 0)
@@ -353,7 +391,7 @@ struct DiscoverView: View {
                         .opacity(isTop ? 1.0 : (0.90 + Double(swipeProgress) * 0.06))
                     }
                 }
-                .frame(height: cardH + 20) // +20 for card-stack peek offset
+                .frame(height: cardH + 14) // compact stack peek keeps more room for the photo
                 // Reset offset as soon as the top card changes (new profile becomes top)
                 // This prevents the next card from briefly inheriting the fly-off offset.
                 .onChange(of: vm.currentProfile?.id) { _, _ in
@@ -392,11 +430,11 @@ struct DiscoverView: View {
                 }
 
                 // Action buttons
-                HStack(spacing: 0) {
+                HStack(spacing: 10) {
                     Spacer()
 
                     // Nein
-                    VStack(spacing: 5) {
+                    VStack(spacing: 4) {
                         Button {
                             Task {
                                 hapticImpact(.light)
@@ -409,25 +447,25 @@ struct DiscoverView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(Color(.systemGray5))
-                                    .shadow(color: Color.black.opacity(0.08), radius: 8, y: 3)
+                                    .fill(Color.white)
+                                    .shadow(color: Color.black.opacity(0.10), radius: 10, y: 4)
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 22, weight: .semibold))
+                                    .font(.system(size: 24, weight: .bold))
                                     .foregroundStyle(Color(.systemGray))
                             }
-                            .frame(width: 62, height: 62)
+                            .frame(width: 64, height: 64)
                         }
                         .accessibilityLabel("Nein")
                         .disabled(vm.isSwiping || vm.isLoading)
                         Text("Nein")
-                            .font(.caption.weight(.semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color(.systemGray))
                     }
 
                     Spacer()
 
                     // Super Like
-                    VStack(spacing: 5) {
+                    VStack(spacing: 4) {
                         Button {
                             Task {
                                 hapticImpact(.medium)
@@ -442,28 +480,28 @@ struct DiscoverView: View {
                                 Circle()
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color(red: 0.55, green: 0.2, blue: 0.95),
-                                                     Color(red: 0.72, green: 0.28, blue: 1.0)],
+                                            colors: [Color(red: 0.48, green: 0.22, blue: 0.92),
+                                                     Color(red: 0.85, green: 0.32, blue: 0.98)],
                                             startPoint: .topLeading, endPoint: .bottomTrailing)
                                     )
-                                    .shadow(color: Color.purple.opacity(0.35), radius: 12, y: 5)
+                                    .shadow(color: Color.purple.opacity(0.28), radius: 12, y: 5)
                                 Image(systemName: "star.fill")
-                                    .font(.system(size: 20, weight: .semibold))
+                                    .font(.system(size: 20, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .frame(width: 54, height: 54)
+                            .frame(width: 58, height: 58)
                         }
                         .accessibilityLabel("Super Like")
                         .disabled(vm.isSwiping || vm.isLoading)
                         Text("Super")
-                            .font(.caption.weight(.semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color(red: 0.6, green: 0.25, blue: 0.95))
                     }
 
                     Spacer()
 
                     // Ja / Like
-                    VStack(spacing: 5) {
+                    VStack(spacing: 4) {
                         Button {
                             Task {
                                 hapticImpact(.medium)
@@ -482,29 +520,30 @@ struct DiscoverView: View {
                                     )
                                     .shadow(color: brandColor.opacity(0.35), radius: 12, y: 5)
                                 Image(systemName: "heart.fill")
-                                    .font(.system(size: 22, weight: .semibold))
+                                    .font(.system(size: 23, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .frame(width: 62, height: 62)
+                            .frame(width: 64, height: 64)
                         }
                         .accessibilityLabel("Like")
                         .disabled(vm.isSwiping || vm.isLoading)
                         .symbolEffect(.bounce, value: vm.isSwiping)
                         Text("Ja")
-                            .font(.caption.weight(.semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(brandColor)
                     }
 
                     Spacer()
                 }
-                .frame(height: 96)
+                .frame(height: 84)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
             .overlay(alignment: .bottom) {
                 if !swipeHintShown {
                     SwipeHintView()
-                        .padding(.bottom, 104)
+                        .padding(.bottom, 92)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .onAppear {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -591,9 +630,24 @@ struct DiscoverView: View {
         }
     }
 
-    private func sendReport(_ reason: String) {
-        guard let t = reportTarget, let myId = auth.session?.user.id else { reportTarget = nil; return }
-        Task { try? await SwipeService.shared.report(reporterId: myId, reportedId: t.id, reason: reason) }
+    private func sendReport(_ reason: String, alsoBlock: Bool) {
+        guard let t = reportTarget, let myId = auth.session?.user.id else {
+            pendingReportReason = nil
+            reportTarget = nil
+            return
+        }
+        pendingReportReason = nil
+
+        Task {
+            do {
+                try await SwipeService.shared.report(reporterId: myId, reportedId: t.id, reason: reason)
+                if alsoBlock {
+                    await vm.blockUser(myUserId: myId, targetId: t.id)
+                }
+            } catch {
+                moderationError = AppError.userMessage(for: error)
+            }
+        }
         reportTarget = nil
     }
 
@@ -667,6 +721,175 @@ struct DiscoverView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
             .padding(.horizontal, 16)
+        }
+    }
+}
+
+// MARK: - No Swipes View
+
+private struct NoSwipesView: View {
+    let usedToday: Int
+    let dailyLimit: Int
+    let onUpgrade: () -> Void
+
+    @State private var timeUntilReset: String = ""
+    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 32) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(colors: [brandColor.opacity(0.15), brandColorAlt.opacity(0.08)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 110, height: 110)
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 46))
+                        .foregroundStyle(
+                            LinearGradient(colors: [brandColor, brandColorAlt],
+                                           startPoint: .top, endPoint: .bottom)
+                        )
+                }
+
+                // Title + subtitle
+                VStack(spacing: 10) {
+                    Text("Tageslimit erreicht")
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+
+                    Text("Du hast heute alle \(dailyLimit) Swipes verbraucht.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    // Reset countdown pill
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock.fill")
+                            .font(.caption.weight(.semibold))
+                        Text("Reset in \(timeUntilReset)")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(brandColor)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(brandColor.opacity(0.10), in: Capsule())
+                }
+
+                // Tier comparison cards
+                VStack(spacing: 10) {
+                    TierRow(
+                        icon: "bolt.fill",
+                        color: .orange,
+                        title: "Premium",
+                        detail: "50 Swipes pro Tag",
+                        isHighlighted: false
+                    )
+                    TierRow(
+                        icon: "crown.fill",
+                        color: Color(red: 0.55, green: 0.22, blue: 0.92),
+                        title: "Elite",
+                        detail: "Unbegrenzte Swipes",
+                        isHighlighted: true
+                    )
+                }
+                .padding(.horizontal, 4)
+
+                // Upgrade CTA
+                Button(action: onUpgrade) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "crown.fill")
+                            .font(.body.weight(.semibold))
+                        Text("Jetzt upgraden")
+                            .font(.body.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(colors: [brandColor, brandColorAlt],
+                                       startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: brandColor.opacity(0.35), radius: 12, y: 6)
+                }
+                .buttonStyle(.plain)
+
+                Text("Swipes werden täglich um Mitternacht zurückgesetzt.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 40)
+        }
+        .onAppear { updateCountdown() }
+        .onReceive(timer) { _ in updateCountdown() }
+    }
+
+    private func updateCountdown() {
+        let cal = Calendar.current
+        guard let midnight = cal.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime) else {
+            timeUntilReset = "Morgen"
+            return
+        }
+        let diff = Int(midnight.timeIntervalSince(Date()))
+        let h = diff / 3600
+        let m = (diff % 3600) / 60
+        if h > 0 {
+            timeUntilReset = "\(h) Std. \(m) Min."
+        } else {
+            timeUntilReset = "\(m) Min."
+        }
+    }
+
+    private struct TierRow: View {
+        let icon: String
+        let color: Color
+        let title: String
+        let detail: String
+        let isHighlighted: Bool
+
+        var body: some View {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(color.opacity(0.14))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: icon)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(color)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isHighlighted {
+                    Text("Beliebt")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(color, in: Capsule())
+                }
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color(.secondarySystemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(isHighlighted ? color.opacity(0.35) : Color.clear, lineWidth: 1.5)
+                    )
+            )
         }
     }
 }
@@ -1091,8 +1314,8 @@ private struct ProfileCard: View {
                 // Gradient overlay: transparent top, soft dark bottom
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0.35),
-                        .init(color: .black.opacity(0.55), location: 0.75),
+                        .init(color: .clear, location: 0.48),
+                        .init(color: .black.opacity(0.46), location: 0.78),
                         .init(color: .black.opacity(0.82), location: 1.0)
                     ],
                     startPoint: .top,
@@ -1134,16 +1357,16 @@ private struct ProfileCard: View {
                 }
 
                 // Profile info overlay at bottom
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     // Name + age
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(profile.displayName.isEmpty ? "Unbekannt" : profile.displayName)
-                            .font(.title)
+                            .font(.system(size: 31, weight: .bold, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
                         if let a = age {
                             Text("\(a)")
-                                .font(.title2)
+                                .font(.title3.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.80))
                         }
                     }
@@ -1152,12 +1375,12 @@ private struct ProfileCard: View {
                     HStack(spacing: 10) {
                         if let city = profile.city, !city.isEmpty {
                             Label(city, systemImage: "mappin")
-                                .font(.subheadline)
+                                .font(.footnote.weight(.medium))
                                 .foregroundStyle(.white.opacity(0.85))
                         }
                         if let km = profile.distanceKm {
                             Text(km < 1 ? "< 1 km" : "\(km) km")
-                                .font(.subheadline)
+                                .font(.footnote.weight(.medium))
                                 .foregroundStyle(.white.opacity(0.70))
                         }
                         if let label = profile.activityLabel {
@@ -1175,22 +1398,22 @@ private struct ProfileCard: View {
                     // Bio
                     if !profile.bio.isEmpty {
                         Text(profile.bio)
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundStyle(.white.opacity(0.92))
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
 
                     // Interest chips
                     if !profile.interests.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
-                                ForEach(profile.interests.prefix(8), id: \.self) { interest in
+                                ForEach(profile.interests.prefix(4), id: \.self) { interest in
                                     Text(interest)
-                                        .font(.caption)
+                                        .font(.caption2.weight(.medium))
                                         .fontWeight(.medium)
                                         .foregroundStyle(.white)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 4)
                                         .background(.white.opacity(0.18), in: Capsule())
                                         .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
                                 }
@@ -1205,25 +1428,24 @@ private struct ProfileCard: View {
                         Button(action: onShowProfile) {
                             HStack(spacing: 6) {
                                 Image(systemName: "person.crop.rectangle")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.system(size: 12, weight: .semibold))
                                 Text("Vollständiges Profil")
                                     .font(.caption.weight(.semibold))
                                 Image(systemName: "chevron.up")
                                     .font(.system(size: 11, weight: .bold))
                             }
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
                             .background(.white.opacity(0.20), in: Capsule())
                             .overlay(Capsule().stroke(.white.opacity(0.30), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 6)
+                        .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal, 18)
-                .padding(.bottom, 22)
+                .padding(.bottom, 20)
                 .frame(width: w, alignment: .leading)
             }
             .frame(width: w, height: h)
