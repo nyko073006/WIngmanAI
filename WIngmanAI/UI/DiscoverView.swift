@@ -153,6 +153,18 @@ struct DiscoverView: View {
                         }
                         await swipe(isLike: true)
                     }
+                },
+                onBlockOrReport: {
+                    let userId = wrapper.id
+                    profileSheetUser = nil
+                    Task {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                            cardOffset = CGSize(width: -900, height: 0)
+                        }
+                        try? await Task.sleep(nanoseconds: 280_000_000)
+                        vm.removeFromStack(userId: userId)
+                        cardOffset = .zero
+                    }
                 }
             )
         }
@@ -675,6 +687,16 @@ private struct SearchSettingsSheet: View {
     @State private var isRelaxed: Bool = false
 
     private let genders = ["Frauen", "Männer", "Divers"]
+
+    /// Normalize any gender value (English/mixed) → German UI label used by chips
+    private func normalizeToLabel(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "women", "weiblich", "female": return "Frauen"
+        case "men", "männlich", "male":     return "Männer"
+        case "divers", "diverse":            return "Divers"
+        default: return raw
+        }
+    }
     private let lookingForOpts: [(String, String, String)] = [
         ("serious",     "infinity",       "Etwas Ernstes"),
         ("casual",      "sparkles",       "Etwas Lockeres"),
@@ -763,7 +785,7 @@ private struct SearchSettingsSheet: View {
                                     }
                                 }
                             }
-                            Text(interestedIn.isEmpty ? "Alle anzeigen" : interestedIn.sorted().joined(separator: ", "))
+                            Text(interestedIn.isEmpty ? "Alle anzeigen" : genders.filter { interestedIn.contains($0) }.joined(separator: ", "))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -920,7 +942,7 @@ private struct SearchSettingsSheet: View {
         lookingFor = vm.filterLookingFor
         interestedIn = vm.filterInterestedIn == "_all_"
             ? []
-            : Set(vm.filterInterestedIn.split(separator: ",").map(String.init))
+            : Set(vm.filterInterestedIn.split(separator: ",").map { normalizeToLabel(String($0)) })
         isRelaxed = vm.isRelaxed
     }
 
