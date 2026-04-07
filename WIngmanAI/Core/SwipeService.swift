@@ -106,10 +106,22 @@ final class SwipeService {
     }
 
     func report(reporterId: UUID, reportedId: UUID, reason: String) async throws {
-        struct ReportInsert: Encodable { let reporter_id: UUID; let reported_id: UUID; let reason: String }
+        struct ReportInsert: Encodable { let reporter_id: UUID; let target_user_id: UUID; let reason: String }
         _ = try await client
             .from("reports")
-            .insert(ReportInsert(reporter_id: reporterId, reported_id: reportedId, reason: reason))
+            .insert(ReportInsert(reporter_id: reporterId, target_user_id: reportedId, reason: normalizeReportReason(reason)))
             .execute()
+    }
+
+    /// Maps German UI labels → DB enum values
+    private func normalizeReportReason(_ reason: String) -> String {
+        switch reason {
+        case "Spam":                  return "spam"
+        case "Belästigung":           return "harassment"
+        case "Fake-Profil":           return "fake"
+        case "Unangemessene Fotos":   return "scam"
+        case "Minderjährig":          return "underage"
+        default:                      return "other"
+        }
     }
 }
