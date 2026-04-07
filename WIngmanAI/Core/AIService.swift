@@ -20,15 +20,19 @@ final class AIService {
     }
 
     private func callFunctionWithToken(_ name: String, body: Data, isRetry: Bool) async throws -> Data {
-        // Fetch session — on first try use cached, on retry force-refresh
-        let token: String?
+        // Get a valid token — never send a request without one
+        let token: String
         if isRetry {
-            token = try? await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
+            // Force-refresh; if this throws, propagate — don't hide behind try?
+            token = try await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
         } else {
-            token = try? await SupabaseClientProvider.shared.client.auth.session.accessToken
+            // Use cached session first; fall back to refresh if nil
+            if let cached = SupabaseClientProvider.shared.client.auth.currentSession?.accessToken {
+                token = cached
+            } else {
+                token = try await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
+            }
         }
-
-        print("[AIService] callFunction=\(name) retry=\(isRetry) token=\(token == nil ? "NIL ❌" : "OK ✅")")
 
         let url = SupabaseClientProvider.shared.supabaseURL
             .appendingPathComponent("functions/v1/\(name)")
@@ -38,14 +42,12 @@ final class AIService {
         req.httpBody = body
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue(SupabaseClientProvider.shared.anonKey, forHTTPHeaderField: "apikey")
-        if let token {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
 
-        // 401 → try once more with a fresh token
+        // 401 → try once more with a force-refreshed token
         if http.statusCode == 401, !isRetry {
             return try await callFunctionWithToken(name, body: body, isRetry: true)
         }

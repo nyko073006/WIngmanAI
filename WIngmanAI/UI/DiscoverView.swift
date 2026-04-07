@@ -317,7 +317,7 @@ struct DiscoverView: View {
         } else if vm.currentProfile != nil {
             let stack = Array(vm.profiles.prefix(3))
             GeometryReader { geo in
-            let cardH = max(460, geo.size.height - 108)
+            let cardH = max(500, geo.size.height - 88)
 
             VStack(spacing: 6) {
                 ZStack {
@@ -430,12 +430,12 @@ struct DiscoverView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
 
-                // Action buttons
-                HStack(spacing: 10) {
+                // Action buttons — compact row, max space for photo
+                HStack(spacing: 0) {
                     Spacer()
 
                     // Nein
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Button {
                             Task {
                                 hapticImpact(.light)
@@ -448,25 +448,25 @@ struct DiscoverView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.10), radius: 10, y: 4)
+                                    .fill(Color(.systemBackground))
+                                    .shadow(color: .black.opacity(0.10), radius: 8, y: 3)
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundStyle(Color(.systemGray))
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(Color(.systemGray2))
                             }
-                            .frame(width: 64, height: 64)
+                            .frame(width: 56, height: 56)
                         }
                         .accessibilityLabel("Nein")
                         .disabled(vm.isSwiping || vm.isLoading)
                         Text("Nein")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color(.systemGray))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color(.systemGray2))
                     }
 
                     Spacer()
 
                     // Super Like
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Button {
                             Task {
                                 hapticImpact(.medium)
@@ -479,30 +479,28 @@ struct DiscoverView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color(red: 0.48, green: 0.22, blue: 0.92),
-                                                     Color(red: 0.85, green: 0.32, blue: 0.98)],
-                                            startPoint: .topLeading, endPoint: .bottomTrailing)
-                                    )
-                                    .shadow(color: Color.purple.opacity(0.28), radius: 12, y: 5)
+                                    .fill(LinearGradient(
+                                        colors: [Color(red: 0.48, green: 0.22, blue: 0.92),
+                                                 Color(red: 0.78, green: 0.28, blue: 0.96)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .shadow(color: Color.purple.opacity(0.30), radius: 10, y: 4)
                                 Image(systemName: "star.fill")
-                                    .font(.system(size: 20, weight: .bold))
+                                    .font(.system(size: 18, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .frame(width: 58, height: 58)
+                            .frame(width: 52, height: 52)
                         }
                         .accessibilityLabel("Super Like")
                         .disabled(vm.isSwiping || vm.isLoading)
                         Text("Super")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color(red: 0.6, green: 0.25, blue: 0.95))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color(red: 0.55, green: 0.22, blue: 0.94))
                     }
 
                     Spacer()
 
                     // Ja / Like
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Button {
                             Task {
                                 hapticImpact(.medium)
@@ -515,32 +513,29 @@ struct DiscoverView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(
-                                        LinearGradient(colors: [brandColor, brandColorAlt],
-                                                       startPoint: .topLeading, endPoint: .bottomTrailing)
-                                    )
-                                    .shadow(color: brandColor.opacity(0.35), radius: 12, y: 5)
+                                    .fill(LinearGradient(colors: [brandColor, brandColorAlt],
+                                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .shadow(color: brandColor.opacity(0.35), radius: 10, y: 4)
                                 Image(systemName: "heart.fill")
-                                    .font(.system(size: 23, weight: .bold))
+                                    .font(.system(size: 21, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .frame(width: 64, height: 64)
+                            .frame(width: 56, height: 56)
                         }
                         .accessibilityLabel("Like")
                         .disabled(vm.isSwiping || vm.isLoading)
-                        .symbolEffect(.bounce, value: vm.isSwiping)
                         Text("Ja")
-                            .font(.caption2.weight(.semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(brandColor)
                     }
 
                     Spacer()
                 }
-                .frame(height: 84)
+                .frame(height: 72)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 12)
+            .padding(.top, 2)
+            .padding(.bottom, 4)
             .overlay(alignment: .bottom) {
                 if !swipeHintShown {
                     SwipeHintView()
@@ -1312,12 +1307,12 @@ private struct ProfileCard: View {
                 // Full-bleed photo with exact pixel frame
                 photoArea(w: w, h: h)
 
-                // Gradient overlay: transparent top, soft dark bottom
+                // Gradient overlay: only bottom 35% — more photo visible
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0.48),
-                        .init(color: .black.opacity(0.46), location: 0.78),
-                        .init(color: .black.opacity(0.82), location: 1.0)
+                        .init(color: .clear, location: 0.60),
+                        .init(color: .black.opacity(0.55), location: 0.82),
+                        .init(color: .black.opacity(0.88), location: 1.0)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -1357,96 +1352,71 @@ private struct ProfileCard: View {
                     .frame(width: w, height: h)
                 }
 
-                // Profile info overlay at bottom
-                VStack(alignment: .leading, spacing: 8) {
+                // Profile info overlay — minimal, face-first
+                VStack(alignment: .leading, spacing: 4) {
                     // Name + age
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(profile.displayName.isEmpty ? "Unbekannt" : profile.displayName)
-                            .font(.system(size: 31, weight: .bold, design: .rounded))
-                            .fontWeight(.bold)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                         if let a = age {
                             Text("\(a)")
-                                .font(.title3.weight(.semibold))
+                                .font(.title2.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.80))
                         }
                     }
 
-                    // City + distance
-                    HStack(spacing: 10) {
+                    // City + distance + activity — single line
+                    HStack(spacing: 8) {
                         if let city = profile.city, !city.isEmpty {
                             Label(city, systemImage: "mappin")
                                 .font(.footnote.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.85))
+                                .foregroundStyle(.white.opacity(0.82))
                         }
                         if let km = profile.distanceKm {
-                            Text(km < 1 ? "< 1 km" : "\(km) km")
+                            Text("· \(km < 1 ? "< 1" : "\(km)") km")
                                 .font(.footnote.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.70))
+                                .foregroundStyle(.white.opacity(0.65))
                         }
-                        if let label = profile.activityLabel {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(label == "Gerade aktiv" ? Color.green : Color.white.opacity(0.55))
-                                    .frame(width: 6, height: 6)
-                                Text(label)
+                        if let label = profile.activityLabel, label == "Gerade aktiv" {
+                            HStack(spacing: 3) {
+                                Circle().fill(Color.green).frame(width: 6, height: 6)
+                                Text("Aktiv")
                                     .font(.caption.weight(.medium))
                                     .foregroundStyle(.white.opacity(0.80))
                             }
                         }
                     }
 
-                    // Bio
+                    // Bio — 2 lines max
                     if !profile.bio.isEmpty {
                         Text(profile.bio)
                             .font(.footnote)
-                            .foregroundStyle(.white.opacity(0.92))
-                            .lineLimit(1)
+                            .foregroundStyle(.white.opacity(0.88))
+                            .lineLimit(2)
+                            .padding(.top, 2)
                     }
 
-                    // Interest chips
-                    if !profile.interests.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(profile.interests.prefix(4), id: \.self) { interest in
-                                    Text(interest)
-                                        .font(.caption2.weight(.medium))
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 9)
-                                        .padding(.vertical, 4)
-                                        .background(.white.opacity(0.18), in: Capsule())
-                                        .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
-                                }
-                            }
-                            .padding(.horizontal, 1)
-                        }
-                        .padding(.top, 2)
-                    }
-
-                    // Full profile button
+                    // Full profile pill
                     if let onShowProfile {
                         Button(action: onShowProfile) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "person.crop.rectangle")
-                                    .font(.system(size: 12, weight: .semibold))
+                            HStack(spacing: 5) {
                                 Text("Vollständiges Profil")
                                     .font(.caption.weight(.semibold))
                                 Image(systemName: "chevron.up")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.system(size: 10, weight: .bold))
                             }
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(.white.opacity(0.20), in: Capsule())
-                            .overlay(Capsule().stroke(.white.opacity(0.30), lineWidth: 1))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.white.opacity(0.18), in: Capsule())
                         }
                         .buttonStyle(.plain)
                         .padding(.top, 4)
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
                 .frame(width: w, alignment: .leading)
             }
             .frame(width: w, height: h)
