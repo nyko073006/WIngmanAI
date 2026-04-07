@@ -106,10 +106,10 @@ final class SwipeService {
     }
 
     func report(reporterId: UUID, reportedId: UUID, reason: String) async throws {
-        struct ReportInsert: Encodable { let reporter_id: UUID; let target_user_id: UUID; let reason: String }
+        struct ReportInsert: Encodable { let reporter_id: UUID; let target_user_id: UUID; let reason_code: String }
         _ = try await client
             .from("reports")
-            .insert(ReportInsert(reporter_id: reporterId, target_user_id: reportedId, reason: normalizeReportReason(reason)))
+            .insert(ReportInsert(reporter_id: reporterId, target_user_id: reportedId, reason_code: normalizeReportReason(reason)))
             .execute()
     }
 
