@@ -1558,12 +1558,17 @@ struct OtherUserProfileSheet: View {
     var distanceKm: Int? = nil
     var isEmbedded: Bool = false
     var onRespondToHook: ((String) -> Void)? = nil
+    var onBlockOrReport: (() -> Void)? = nil
 
+    @EnvironmentObject private var auth: AppAuthService
     @StateObject private var vm = OtherUserProfileViewModel()
     @Environment(\.dismiss) private var dismiss
 
     private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
     @State private var photoIndex = 0
+    @State private var fullscreenPhotoUrl: URL? = nil
+    @State private var showBlockAlert = false
+    @State private var showReportDialog = false
 
     var body: some View {
         Group {
@@ -1583,8 +1588,34 @@ struct OtherUserProfileSheet: View {
             }
         }
         .task { await vm.load(userId: userId) }
+        .alert("Blockieren?", isPresented: $showBlockAlert) {
+            Button("Blockieren", role: .destructive) {
+                guard let myId = auth.session?.user.id else { return }
+                Task {
+                    try? await SwipeService.shared.block(blockerId: myId, blockedId: userId)
+                    onBlockOrReport?()
+                    dismiss()
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Dieser Nutzer wird für dich blockiert.")
+        }
+        .confirmationDialog("Melden", isPresented: $showReportDialog, titleVisibility: .visible) {
+            ForEach(["Spam", "Belästigung", "Fake-Profil", "Unangemessene Fotos", "Sonstiges"], id: \.self) { reason in
+                Button(reason) {
+                    guard let myId = auth.session?.user.id else { return }
+                    Task {
+                        try? await SwipeService.shared.report(reporterId: myId, reportedId: userId, reason: reason)
+                        onBlockOrReport?()
+                        dismiss()
+                    }
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        }
     }
-    
+
     @ViewBuilder
     private var mainContent: some View {
         Group {
@@ -1687,24 +1718,42 @@ struct OtherUserProfileSheet: View {
                 .frame(width: w, alignment: .leading)
                 .allowsHitTesting(false)
 
-                if vm.photoUrls.count > 1 {
-                    HStack(spacing: 0) {
-                        Color.clear
-                            .frame(width: w * 0.4, height: h)
-                            .contentShape(Rectangle())
-                            .onTapGesture { if photoIndex > 0 { photoIndex -= 1 } }
-                        Spacer()
-                        Color.clear
-                            .frame(width: w * 0.4, height: h)
-                            .contentShape(Rectangle())
-                            .onTapGesture { if photoIndex < vm.photoUrls.count - 1 { photoIndex += 1 } }
-                    }
-                    .frame(width: w, height: h)
+                // Tap zones: left 35% prev, right 35% next, center 30% fullscreen
+                HStack(spacing: 0) {
+                    Color.clear
+                        .frame(width: w * 0.35, height: h)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if vm.photoUrls.count > 1, photoIndex > 0 { photoIndex -= 1 }
+                        }
+                    Color.clear
+                        .frame(maxWidth: .infinity)
+                        .frame(height: h)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if let urlStr = vm.photoUrls.indices.contains(photoIndex) ? vm.photoUrls[photoIndex] : nil,
+                               let url = URL(string: urlStr) {
+                                fullscreenPhotoUrl = url
+                            }
+                        }
+                    Color.clear
+                        .frame(width: w * 0.35, height: h)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if vm.photoUrls.count > 1, photoIndex < vm.photoUrls.count - 1 { photoIndex += 1 }
+                        }
                 }
+                .frame(width: w, height: h)
             }
             .frame(width: w, height: h)
         }
         .frame(height: 420)
+        .fullScreenCover(item: Binding(
+            get: { fullscreenPhotoUrl.map { IdentifiableURL(url: $0) } },
+            set: { fullscreenPhotoUrl = $0?.url }
+        )) { item in
+            FullscreenPhotoView(url: item.url, allUrls: vm.photoUrls.compactMap { URL(string: $0) }, startIndex: photoIndex)
+        }
     }
 
     @ViewBuilder
@@ -1793,6 +1842,30 @@ struct OtherUserProfileSheet: View {
                 contentSection("Grenzen & Präferenzen") {
                     FlowChips(items: boundaryChips, brand: Color(.systemTeal).opacity(0.8))
                 }
+            }
+
+            HStack(spacing: 12) {
+                Button { showReportDialog = true } label: {
+                    Label("Melden", systemImage: "flag.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                        .foregroundStyle(.orange)
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.20), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                Button { showBlockAlert = true } label: {
+                    Label("Blockieren", systemImage: "hand.raised.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                        .foregroundStyle(.red)
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.red.opacity(0.20), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 16)
@@ -2007,5 +2080,85 @@ private struct UsageRow: View {
             .frame(height: 5)
         }
         .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Fullscreen Photo Viewer
+
+private struct IdentifiableURL: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+private struct FullscreenPhotoView: View {
+    let url: URL
+    let allUrls: [URL]
+    let startIndex: Int
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentIndex: Int
+    @State private var scale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @GestureState private var dragOffset: CGSize = .zero
+
+    init(url: URL, allUrls: [URL], startIndex: Int) {
+        self.url = url
+        self.allUrls = allUrls.isEmpty ? [url] : allUrls
+        self.startIndex = startIndex
+        self._currentIndex = State(initialValue: startIndex)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $currentIndex) {
+                ForEach(Array(allUrls.enumerated()), id: \.offset) { idx, photoUrl in
+                    CachedAsyncImage(url: photoUrl) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .scaleEffect(scale)
+                                .gesture(MagnificationGesture()
+                                    .onChanged { scale = max(1, $0) }
+                                    .onEnded { _ in
+                                        withAnimation(.spring(response: 0.3)) { scale = 1.0 }
+                                    }
+                                )
+                        case .empty:
+                            ProgressView().tint(.white)
+                        default:
+                            Image(systemName: "photo").font(.largeTitle).foregroundStyle(.white.opacity(0.4))
+                        }
+                    }
+                    .tag(idx)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: allUrls.count > 1 ? .always : .never))
+
+            // Close button
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.top, 56)
+                }
+                Spacer()
+            }
+        }
+        .statusBarHidden(true)
     }
 }
