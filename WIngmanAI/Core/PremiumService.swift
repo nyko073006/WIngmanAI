@@ -15,6 +15,8 @@ final class PremiumService: ObservableObject {
     @Published private(set) var currentTier: Tier = .none
     @Published private(set) var products: [Product] = []
     @Published private(set) var isPurchasing = false
+    /// True while the initial DB tier check is in flight — UI can show a spinner instead of paywall.
+    @Published private(set) var isTierLoading = true
 
     enum Tier: String {
         case none, premium, elite
@@ -50,10 +52,13 @@ final class PremiumService: ObservableObject {
 
     private init() {
         currentTier = Tier(rawValue: UserDefaults.standard.string(forKey: tierKey) ?? "") ?? .none
+        // If we already have a cached tier, don't block UI with loading state
+        if currentTier != .none { isTierLoading = false }
         Task { await loadProducts() }
         Task {
             await refreshEntitlements()
             await loadTierFromSupabase()
+            isTierLoading = false
         }
     }
 
@@ -88,7 +93,9 @@ final class PremiumService: ObservableObject {
 
     /// Call after auth session is established to pick up DB-granted tiers.
     func reloadTier() async {
+        isTierLoading = true
         await loadTierFromSupabase()
+        isTierLoading = false
     }
 
     func refreshEntitlements(syncToServer: Bool = false) async {

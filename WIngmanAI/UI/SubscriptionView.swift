@@ -13,7 +13,7 @@ struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @StateObject private var service = PremiumService.shared
-    @State private var selectedTier: PlanTier = .premium
+    @State private var selectedTier: PlanTier = .elite   // default to elite since that's what we offer everyone
     @State private var premiumProduct: Product?
     @State private var eliteProduct: Product?
     @State private var errorMessage: String?
@@ -232,10 +232,13 @@ struct SubscriptionView: View {
                 }
                 .accessibilityLabel("Abonnement verwalten oder kündigen öffnet Apple App Store")
             }
-            Button { Task { await restore() } } label: {
-                Text("Kauf wiederherstellen")
-                    .font(.footnote)
-                    .foregroundStyle(Color(.tertiaryLabel))
+            // Hide restore if already elite (DB-granted or purchased)
+            if !service.isElite {
+                Button { Task { await restore() } } label: {
+                    Text("Kauf wiederherstellen")
+                        .font(.footnote)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
             }
         }
     }
@@ -254,7 +257,7 @@ struct SubscriptionView: View {
             try await service.purchase(product)
             if service.isPremium { dismiss() }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = localizedStoreKitError(error)
             showError = true
         }
     }
@@ -264,9 +267,23 @@ struct SubscriptionView: View {
             try await service.restorePurchases()
             if service.isPremium { dismiss() }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = localizedStoreKitError(error)
             showError = true
         }
+    }
+
+    private func localizedStoreKitError(_ error: Error) -> String {
+        let msg = error.localizedDescription.lowercased()
+        if msg.contains("unable to complete") || msg.contains("cannot connect") || msg.contains("network") {
+            return "Der App Store ist gerade nicht erreichbar. Überprüfe deine Internetverbindung und versuche es erneut."
+        }
+        if msg.contains("cancel") {
+            return "Kauf abgebrochen."
+        }
+        if msg.contains("not allowed") || msg.contains("restricted") {
+            return "Käufe sind auf diesem Gerät nicht erlaubt."
+        }
+        return error.localizedDescription
     }
 }
 

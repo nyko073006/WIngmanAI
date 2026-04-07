@@ -28,6 +28,7 @@ struct DiscoverView: View {
     @EnvironmentObject var auth: AppAuthService
     @StateObject private var vm = DiscoverViewModel()
     @StateObject private var usageLimits = UsageLimitService.shared
+    @StateObject private var premium = PremiumService.shared
 
     /// Called when user taps "Chat starten" on the match overlay.
     /// Parent can use this to switch to the Matches tab and open the chat.
@@ -307,7 +308,7 @@ struct DiscoverView: View {
                     .tint(brandColor)
             }
             .padding()
-        } else if !usageLimits.canSwipe() {
+        } else if !usageLimits.canSwipe() && !premium.isTierLoading {
             NoSwipesView(
                 usedToday: usageLimits.current.swipesPerDay - usageLimits.remainingSwipes,
                 dailyLimit: usageLimits.current.swipesPerDay,
