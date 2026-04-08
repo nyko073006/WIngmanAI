@@ -94,9 +94,10 @@ struct DiscoverView: View {
                                             .font(.system(size: 9, weight: .bold))
                                             .foregroundStyle(.white)
                                     }
-                                    .offset(x: 7, y: -7)
+                                    .offset(x: 8, y: -4)
                                 }
                             }
+                            .clipped(false)
 
                             // Filter button
                             Button {
