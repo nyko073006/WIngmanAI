@@ -115,12 +115,16 @@ final class DiscoverViewModel: ObservableObject {
     }
 
     private func loadBlockedAndReportedIds(myUserId: UUID) async {
-        struct BlockRow: Decodable { let blocked_id: UUID }
-        struct ReportRow: Decodable { let reported_id: UUID }
+        struct BlockRow:  Decodable { let blocked_id: UUID }
+        struct ReportRow: Decodable { let target_user_id: UUID }
+        struct SwipedRow: Decodable { let target_id: UUID }
         let client = SupabaseClientProvider.shared.client
-        let blocks = (try? await client.from("blocks").select("blocked_id").eq("blocker_id", value: myUserId.uuidString).execute().value as [BlockRow]) ?? []
-        let reports = (try? await client.from("reports").select("reported_id").eq("reporter_id", value: myUserId.uuidString).execute().value as [ReportRow]) ?? []
-        blockedAndReportedIds = Set(blocks.map(\.blocked_id)).union(reports.map(\.reported_id))
+        let blocks  = (try? await client.from("blocks").select("blocked_id").eq("blocker_id", value: myUserId.uuidString).execute().value as [BlockRow]) ?? []
+        let reports = (try? await client.from("reports").select("target_user_id").eq("reporter_id", value: myUserId.uuidString).execute().value as [ReportRow]) ?? []
+        // Pre-seed seenUserIds with already-swiped profiles so fallback query never shows them
+        let swiped  = (try? await client.from("swipes").select("target_id").eq("swiper_id", value: myUserId.uuidString).execute().value as [SwipedRow]) ?? []
+        seenUserIds.formUnion(swiped.map(\.target_id))
+        blockedAndReportedIds = Set(blocks.map(\.blocked_id)).union(reports.map(\.target_user_id))
     }
 
     func setRelaxed(_ value: Bool, myUserId: UUID) async {
@@ -172,9 +176,18 @@ final class DiscoverViewModel: ObservableObject {
                 .rpc("get_discover_profiles", params: params)
                 .execute()
                 .value
-        } catch {
-            self.errorText = AppError.userMessage(for: error)
-            return
+        } catch let rpcError {
+            // Fallback: query profiles table directly (skips distance/swipe filtering)
+            if let fallbackRows = await loadFallbackProfiles(myUserId: myUserId) {
+                rows = fallbackRows
+            } else {
+                #if DEBUG
+                self.errorText = "[\(type(of: rpcError))] \(rpcError)"
+                #else
+                self.errorText = AppError.userMessage(for: rpcError)
+                #endif
+                return
+            }
         }
 
         let existingIds = Set(self.profiles.map { $0.id })
@@ -440,6 +453,49 @@ final class DiscoverViewModel: ObservableObject {
         filterDistanceKm = defaultDistanceKm; filterLookingFor = defaultLookingFor
         filterInterestedIn = defaultInterestedIn; isRelaxed = false
         await applyFilters(myUserId: myUserId)
+    }
+
+    /// Direct profiles table query used as fallback when the RPC fails.
+    /// No distance/swipe filtering — just returns real profiles for the user to see.
+    private func loadFallbackProfiles(myUserId: UUID) async -> [DiscoverRow]? {
+        struct Row: Decodable {
+            let user_id: UUID
+            let updated_at: Date?
+            let display_name: String?
+            let city: String?
+            let bio: String?
+            let interests: [String]?
+            let birthdate: String?
+            let last_active_at: Date?
+        }
+        do {
+            let fallbackRows: [Row] = try await SupabaseClientProvider.shared.client
+                .from("profiles")
+                .select("user_id,updated_at,display_name,city,bio,interests,birthdate,last_active_at")
+                .eq("onboarding_complete", value: true)
+                .neq("user_id", value: myUserId.uuidString)
+                .order("updated_at", ascending: false)
+                .limit(pageSize)
+                .execute()
+                .value
+            return fallbackRows.map {
+                DiscoverRow(
+                    user_id: $0.user_id,
+                    updated_at: $0.updated_at,
+                    display_name: $0.display_name,
+                    city: $0.city,
+                    bio: $0.bio,
+                    interests: $0.interests,
+                    birthdate: $0.birthdate,
+                    primary_photo_url: nil,
+                    distance_km: nil,
+                    last_active_at: $0.last_active_at
+                )
+            }
+        } catch {
+            print("DiscoverViewModel.loadFallbackProfiles:", error)
+            return nil
+        }
     }
 
     private func matchIdIfExists(myUserId: UUID, otherUserId: UUID) async -> UUID? {
