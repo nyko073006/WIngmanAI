@@ -20,18 +20,12 @@ final class AIService {
     }
 
     private func callFunctionWithToken(_ name: String, body: Data, isRetry: Bool) async throws -> Data {
-        // Get a valid token — never send a request without one
+        // Get a valid token — session property auto-refreshes if expired
         let token: String
         if isRetry {
-            // Force-refresh; if this throws, propagate — don't hide behind try?
             token = try await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
         } else {
-            // Use cached session first; fall back to refresh if nil
-            if let cached = SupabaseClientProvider.shared.client.auth.currentSession?.accessToken {
-                token = cached
-            } else {
-                token = try await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
-            }
+            token = try await SupabaseClientProvider.shared.client.auth.session.accessToken
         }
 
         let url = SupabaseClientProvider.shared.supabaseURL
