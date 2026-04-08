@@ -38,11 +38,13 @@ struct LikesView: View {
     }
 
     private var canReveal: Bool {
+        if premium.currentTier == .elite { return true }
         guard let last = UserDefaults.standard.object(forKey: cooldownKey) as? Date else { return true }
         return Date().timeIntervalSince(last) >= cooldownDuration
     }
 
     private var nextRevealDate: Date? {
+        if premium.currentTier == .elite { return nil }
         guard let last = UserDefaults.standard.object(forKey: cooldownKey) as? Date else { return nil }
         let next = last.addingTimeInterval(cooldownDuration)
         return next > Date() ? next : nil
