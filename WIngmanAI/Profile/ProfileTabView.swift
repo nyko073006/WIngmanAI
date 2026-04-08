@@ -2265,9 +2265,6 @@ struct ManagePhotosSheet: View {
                             }
                             Spacer()
                             
-                            Image(systemName: "line.3.horizontal")
-                                .foregroundStyle(.tertiary)
-                                .font(.title3)
                         }
                         .padding(.vertical, 4)
                     }
