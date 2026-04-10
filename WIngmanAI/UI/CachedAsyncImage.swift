@@ -56,19 +56,17 @@ final class ImageCache {
     }
 
     /// Preloads and caches an image if not already cached.
+    @MainActor
     func preload(_ url: URL) async {
         if get(url) != nil { return }
-        
-        let loadedImg: UIImage? = await Task.detached(priority: .background) {
-            guard let (data, response) = try? await URLSession.shared.data(from: url),
-                  let code = (response as? HTTPURLResponse)?.statusCode, code >= 200 && code < 300,
-                  let loaded = UIImage(data: data) else {
-                return nil
-            }
-            self.set(loaded, data: data, for: url)
-            return loaded
-        }.value
-        _ = loadedImg
+
+        guard let (data, response) = try? await URLSession.shared.data(from: url),
+              let code = (response as? HTTPURLResponse)?.statusCode, code >= 200 && code < 300,
+              let loaded = UIImage(data: data) else {
+            return
+        }
+
+        set(loaded, data: data, for: url)
     }
 }
 
@@ -116,16 +114,15 @@ struct CachedAsyncImage<Content: View>: View {
             return 
         }
         
-        // Detach download so it doesn't block main queue priority too much
-        let loadedImg: UIImage? = await Task.detached(priority: .userInitiated) {
-            guard let (data, response) = try? await URLSession.shared.data(from: url),
-                  let code = (response as? HTTPURLResponse)?.statusCode, code >= 200 && code < 300,
-                  let loaded = UIImage(data: data) else {
-                return nil
-            }
+        let loadedImg: UIImage?
+        if let (data, response) = try? await URLSession.shared.data(from: url),
+           let code = (response as? HTTPURLResponse)?.statusCode, code >= 200 && code < 300,
+           let loaded = UIImage(data: data) {
             ImageCache.shared.set(loaded, data: data, for: url)
-            return loaded
-        }.value
+            loadedImg = loaded
+        } else {
+            loadedImg = nil
+        }
         
         if let img = loadedImg {
             uiImage = img

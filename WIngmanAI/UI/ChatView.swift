@@ -15,6 +15,7 @@ private let chatBrandAlt = Color(.sRGB, red: 0xF5/255, green: 0x7C/255, blue: 0x
 
 struct ChatView: View {
     @EnvironmentObject var auth: AppAuthService
+    @Environment(\.dismiss) private var dismiss
 
     let matchId: UUID
     let otherName: String
@@ -35,6 +36,9 @@ struct ChatView: View {
     @StateObject private var premium = PremiumService.shared
     @State private var showSubscription = false
     @State private var reactedIds: Set<UUID> = []
+    @State private var showReportDialog = false
+    @State private var showBlockAlert = false
+    @State private var pendingReportReason: String? = nil
 
     // True when the last message in the conversation was sent by us
     private var lastMessageIsFromMe: Bool {
@@ -87,13 +91,39 @@ struct ChatView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: vm.isOffline)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                        Text("Zurück")
+                            .font(.body)
+                    }
+                    .foregroundStyle(chatBrand)
+                }
+            }
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 2) {
                     Text(otherName).font(.headline)
                     if vm.otherIsTyping {
                         TypingDotsView()
                     }
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(role: .destructive) { showReportDialog = true } label: {
+                        Label("Melden", systemImage: "flag")
+                    }
+                    Button(role: .destructive) { showBlockAlert = true } label: {
+                        Label("Blockieren", systemImage: "hand.raised")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -166,6 +196,66 @@ struct ChatView: View {
             Button("OK", role: .cancel) { vm.errorText = nil }
         } message: {
             Text(vm.errorText ?? "")
+        }
+        .alert("Blockieren?", isPresented: $showBlockAlert) {
+            Button("Blockieren", role: .destructive) {
+                guard let myId = auth.session?.user.id else { return }
+                Task {
+                    do {
+                        try await SwipeService.shared.block(blockerId: myId, blockedId: otherUserId)
+                        dismiss()
+                    } catch {
+                        vm.errorText = AppError.userMessage(for: error)
+                    }
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Dieser Nutzer wird für dich blockiert.")
+        }
+        .confirmationDialog("Melden", isPresented: $showReportDialog, titleVisibility: .visible) {
+            ForEach(["Spam", "Belästigung", "Fake-Profil", "Unangemessene Fotos", "Sonstiges"], id: \.self) { reason in
+                Button(reason) {
+                    pendingReportReason = reason
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        }
+        .confirmationDialog("Auch blockieren?", isPresented: Binding(
+            get: { pendingReportReason != nil },
+            set: { if !$0 { pendingReportReason = nil } }
+        ), titleVisibility: .visible) {
+            Button("Nur melden") {
+                guard let reason = pendingReportReason else { return }
+                submitReport(reason: reason, alsoBlock: false)
+            }
+            Button("Melden und blockieren", role: .destructive) {
+                guard let reason = pendingReportReason else { return }
+                submitReport(reason: reason, alsoBlock: true)
+            }
+            Button("Abbrechen", role: .cancel) { pendingReportReason = nil }
+        } message: {
+            Text("Wenn du auch blockierst, wird dir dieser Nutzer nicht mehr angezeigt.")
+        }
+    }
+
+    private func submitReport(reason: String, alsoBlock: Bool) {
+        guard let myId = auth.session?.user.id else {
+            pendingReportReason = nil
+            return
+        }
+        pendingReportReason = nil
+
+        Task {
+            do {
+                try await SwipeService.shared.report(reporterId: myId, reportedId: otherUserId, reason: reason)
+                if alsoBlock {
+                    try await SwipeService.shared.block(blockerId: myId, blockedId: otherUserId)
+                    dismiss()
+                }
+            } catch {
+                vm.errorText = AppError.userMessage(for: error)
+            }
         }
     }
 

@@ -32,7 +32,6 @@
 		AA010001AAAAAAAA00000006 /* MatchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000006 /* MatchService.swift */; };
 		AA010001AAAAAAAA00000007 /* MatchesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000007 /* MatchesService.swift */; };
 		AA010001AAAAAAAA00000008 /* PhotoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000008 /* PhotoService.swift */; };
-		AA010001AAAAAAAA00000009 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173AEB82F2EB68400B78445 /* SupabaseClient.swift */; };
 		AA010001AAAAAAAA00000010 /* SwipeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000010 /* SwipeService.swift */; };
 		AA010001AAAAAAAA00000011 /* ProfileTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000011 /* ProfileTabView.swift */; };
 		AA010001AAAAAAAA00000012 /* PublicProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA010002AAAAAAAA00000012 /* PublicProfile.swift */; };
@@ -69,7 +68,6 @@
 		2173AEB32F2EB68400B78445 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		2173AEB42F2EB68400B78445 /* AppAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAuthService.swift; sourceTree = "<group>"; };
 		2173AEB52F2EB68400B78445 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
-		2173AEB82F2EB68400B78445 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		2173AEBA2F2EB68400B78445 /* OnboardingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingService.swift; sourceTree = "<group>"; };
 		2173AEBB2F2EB68400B78445 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		2173AEC02F2EB68400B78445 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -165,7 +163,6 @@
 		2173AEB92F2EB68400B78445 /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				2173AEB82F2EB68400B78445 /* SupabaseClient.swift */,
 				AA010002AAAAAAAA00000001 /* AIService.swift */,
 				AA010002AAAAAAAA00000004 /* LocalIcebreakerGenerator.swift */,
 				AA010002AAAAAAAA00000006 /* MatchService.swift */,
@@ -340,7 +337,6 @@
 				AA010001AAAAAAAA00000006 /* MatchService.swift in Sources */,
 				AA010001AAAAAAAA00000007 /* MatchesService.swift in Sources */,
 				AA010001AAAAAAAA00000008 /* PhotoService.swift in Sources */,
-				AA010001AAAAAAAA00000009 /* SupabaseClient.swift in Sources */,
 				AA010001AAAAAAAA00000010 /* SwipeService.swift in Sources */,
 				AA010001AAAAAAAA00000011 /* ProfileTabView.swift in Sources */,
 				AA010001AAAAAAAA00000012 /* PublicProfile.swift in Sources */,

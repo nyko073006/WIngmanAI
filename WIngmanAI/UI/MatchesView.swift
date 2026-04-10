@@ -41,11 +41,13 @@ struct MatchesView: View {
     @State private var profileSheetUser: IdentifiableUUID? = nil
     @State private var blockAlertMatch: MatchesViewModel.MatchItem? = nil
     @State private var reportAlertMatch: MatchesViewModel.MatchItem? = nil
+    @State private var pendingReportReason: String? = nil
     @State private var unmatchAlertMatch: MatchesViewModel.MatchItem? = nil
     @State private var debriefMatch: MatchesViewModel.MatchItem? = nil
     @State private var optionsMatch: MatchesViewModel.MatchItem? = nil
     @State private var closureItem: MatchesViewModel.MatchItem? = nil
     @State private var closedMatchIds: Set<String> = []
+    @State private var moderationError: String? = nil
     
     @AppStorage("matches_view_style") private var viewStyle: String = "list"
 
@@ -219,13 +221,38 @@ struct MatchesView: View {
                 ) {
                     ForEach(["Spam", "Belästigung", "Fake-Profil", "Unangemessene Fotos", "Sonstiges"], id: \.self) { reason in
                         Button(reason) {
-                            if let item = reportAlertMatch {
-                                Task { try? await SwipeService.shared.report(reporterId: myId, reportedId: item.otherUserId, reason: reason) }
-                            }
-                            reportAlertMatch = nil
+                            pendingReportReason = reason
                         }
                     }
                     Button("Abbrechen", role: .cancel) { reportAlertMatch = nil }
+                }
+                .confirmationDialog(
+                    "Auch blockieren?",
+                    isPresented: Binding(get: { pendingReportReason != nil }, set: { if !$0 { pendingReportReason = nil } }),
+                    titleVisibility: .visible
+                ) {
+                    Button("Nur melden") {
+                        guard let item = reportAlertMatch, let reason = pendingReportReason else { return }
+                        submitReport(item: item, reason: reason, alsoBlock: false)
+                    }
+                    Button("Melden und blockieren", role: .destructive) {
+                        guard let item = reportAlertMatch, let reason = pendingReportReason else { return }
+                        submitReport(item: item, reason: reason, alsoBlock: true)
+                    }
+                    Button("Abbrechen", role: .cancel) {
+                        pendingReportReason = nil
+                        reportAlertMatch = nil
+                    }
+                } message: {
+                    Text("Wenn du auch blockierst, wird dir dieser Nutzer nicht mehr angezeigt.")
+                }
+                .alert("Fehler", isPresented: Binding(
+                    get: { moderationError != nil },
+                    set: { if !$0 { moderationError = nil } }
+                )) {
+                    Button("OK", role: .cancel) { moderationError = nil }
+                } message: {
+                    Text(moderationError ?? "")
                 }
                 .alert("Entmatchen?", isPresented: Binding(
                     get: { unmatchAlertMatch != nil },
@@ -249,6 +276,30 @@ struct MatchesView: View {
                 } message: {
                     Text("Das Match wird gelöscht.")
                 }
+        }
+    }
+
+    private func submitReport(item: MatchesViewModel.MatchItem, reason: String, alsoBlock: Bool) {
+        pendingReportReason = nil
+        reportAlertMatch = nil
+
+        Task {
+            do {
+                try await SwipeService.shared.report(reporterId: myId, reportedId: item.otherUserId, reason: reason)
+                guard alsoBlock else { return }
+
+                let matchId = item.id
+                vm.items.removeAll { $0.id == matchId }
+                do {
+                    try await SwipeService.shared.block(blockerId: myId, blockedId: item.otherUserId)
+                    try await SupabaseClientProvider.shared.client.from("matches").delete().eq("id", value: matchId.uuidString).execute()
+                } catch {
+                    vm.items.insert(item, at: 0)
+                    throw error
+                }
+            } catch {
+                moderationError = AppError.userMessage(for: error)
+            }
         }
     }
 

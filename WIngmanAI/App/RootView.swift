@@ -159,7 +159,9 @@ struct MainAppTabsView: View {
         }
         // Reactive: show Daily Reward as soon as matches list finishes loading
         .onChange(of: matchesVM.isLoading) { _, loading in
-            guard !loading, !showDailyReward, rewardService.canClaimToday else { return }
+            guard !loading, !showDailyReward else { return }
+            rewardService.refresh()
+            guard rewardService.canClaimToday else { return }
             showDailyReward = true
         }
         // Foreground: merged single observer for badge reset + reward refresh

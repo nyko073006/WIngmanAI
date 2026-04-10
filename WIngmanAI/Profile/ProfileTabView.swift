@@ -263,9 +263,12 @@ final class ProfileViewModel: ObservableObject {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let compressed = compressJPEG(data) ?? data
 
+        isLoading = true
+        defer { isLoading = false }
+
         let bucket = "profile-photos"
         let path = "\(userId.uuidString.lowercased())/\(UUID().uuidString.lowercased()).jpg"
-        let accessToken = SupabaseClientProvider.shared.client.auth.currentSession?.accessToken ?? ""
+        let accessToken = (try? await SupabaseClientProvider.shared.client.auth.session.accessToken) ?? ""
 
         do {
             let url = SupabaseClientProvider.shared.supabaseURL
@@ -285,6 +288,16 @@ final class ProfileViewModel: ObservableObject {
             }
 
             let publicUrl = try client.storage.from(bucket).getPublicURL(path: path).absoluteString
+
+            // NSFW + Text check
+            let (flagged, reason) = await AIService.shared.moderatePhoto(imageUrl: publicUrl)
+            if flagged {
+                _ = try? await client.storage.from(bucket).remove(paths: [path])
+                errorText = reason == "text_overlay"
+                    ? "Profilfotos dürfen keinen Text, Logos oder Wasserzeichen enthalten."
+                    : "Dieses Foto entspricht nicht unseren Richtlinien und wurde nicht hochgeladen."
+                return
+            }
 
             _ = try? await client.from("photos")
                 .update(["is_primary": false])
@@ -310,7 +323,7 @@ final class ProfileViewModel: ObservableObject {
 
         let bucket = "profile-photos"
         let path = "\(userId.uuidString.lowercased())/\(UUID().uuidString.lowercased()).jpg"
-        let accessToken = SupabaseClientProvider.shared.client.auth.currentSession?.accessToken ?? ""
+        let accessToken = (try? await SupabaseClientProvider.shared.client.auth.session.accessToken) ?? ""
 
         do {
             let url = SupabaseClientProvider.shared.supabaseURL
@@ -331,9 +344,19 @@ final class ProfileViewModel: ObservableObject {
 
             let publicUrl = try client.storage.from(bucket).getPublicURL(path: path).absoluteString
 
+            // NSFW + Text check
+            let (flagged, reason) = await AIService.shared.moderatePhoto(imageUrl: publicUrl)
+            if flagged {
+                _ = try? await client.storage.from(bucket).remove(paths: [path])
+                errorText = reason == "text_overlay"
+                    ? "Profilfotos dürfen keinen Text, Logos oder Wasserzeichen enthalten."
+                    : "Dieses Foto entspricht nicht unseren Richtlinien und wurde nicht hochgeladen."
+                return
+            }
+
             let maxSortOrder = photos.map { $0.sortOrder }.max() ?? -1
             let newSortOrder = maxSortOrder + 1
-            let isPrimary = photos.isEmpty // If no photos exist, make this primary
+            let isPrimary = photos.isEmpty
 
             struct PhotoInsert: Encodable {
                 let user_id: UUID; let url: String; let sort_order: Int; let is_primary: Bool; let is_snapshot: Bool
@@ -1306,8 +1329,25 @@ private struct VibeMessageSheet: View {
     let remainingCredits: Int
     @Binding var isSending: Bool
     @Binding var sentSuccess: Bool
-    let onSend: () -> Void
+    let onSend: (String) -> Void
     let onDismiss: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var editedMessage: String
+    private let maxChars = 200
+
+    init(vibe: String, targetName: String, remainingCredits: Int,
+         isSending: Binding<Bool>, sentSuccess: Binding<Bool>,
+         onSend: @escaping (String) -> Void, onDismiss: @escaping () -> Void) {
+        self.vibe = vibe
+        self.targetName = targetName
+        self.remainingCredits = remainingCredits
+        self._isSending = isSending
+        self._sentSuccess = sentSuccess
+        self.onSend = onSend
+        self.onDismiss = onDismiss
+        self._editedMessage = State(initialValue: vibe)
+    }
 
     private let brand = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
     private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
@@ -1342,7 +1382,7 @@ private struct VibeMessageSheet: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
-                    Button("Fertig") { onDismiss() }
+                    Button("Fertig") { onDismiss(); dismiss() }
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -1365,18 +1405,31 @@ private struct VibeMessageSheet: View {
                             .multilineTextAlignment(.center)
                     }
 
-                    // Message bubble preview
-                    HStack {
-                        Spacer()
-                        Text(vibe)
-                            .font(.system(.subheadline, design: .rounded).weight(.medium))
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 12)
-                            .background(LinearGradient(colors: [brand, brandAlt],
-                                                       startPoint: .leading, endPoint: .trailing))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .shadow(color: brand.opacity(0.25), radius: 8, y: 4)
+                    // Editable message field
+                    VStack(alignment: .trailing, spacing: 6) {
+                        ZStack(alignment: .topLeading) {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(.secondarySystemBackground))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(brand.opacity(0.30), lineWidth: 1.5)
+                                )
+                            TextEditor(text: $editedMessage)
+                                .font(.system(.subheadline, design: .rounded))
+                                .scrollContentBackground(.hidden)
+                                .background(.clear)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .frame(minHeight: 72, maxHeight: 120)
+                                .onChange(of: editedMessage) { _, v in
+                                    if v.count > maxChars {
+                                        editedMessage = String(v.prefix(maxChars))
+                                    }
+                                }
+                        }
+                        Text("\(editedMessage.count)/\(maxChars)")
+                            .font(.caption2)
+                            .foregroundStyle(editedMessage.count > maxChars - 20 ? Color.orange : Color(.tertiaryLabel))
                     }
                     .padding(.horizontal, 24)
 
@@ -1396,8 +1449,8 @@ private struct VibeMessageSheet: View {
                     VStack(spacing: 10) {
                         // Send button
                         Button {
-                            guard !isSending else { return }
-                            onSend()
+                            guard !isSending, !editedMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                            onSend(editedMessage.trimmingCharacters(in: .whitespacesAndNewlines))
                         } label: {
                             ZStack {
                                 LinearGradient(colors: [brand, brandAlt],
@@ -1418,7 +1471,7 @@ private struct VibeMessageSheet: View {
                             .frame(height: 54)
                         }
                         .buttonStyle(.plain)
-                        .disabled(isSending || remainingCredits < 5)
+                        .disabled(isSending || remainingCredits < 5 || editedMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                         Button("Abbrechen") { onDismiss() }
                             .font(.subheadline)
@@ -1429,7 +1482,7 @@ private struct VibeMessageSheet: View {
                 .padding(.bottom, 36)
             }
         }
-        .presentationDetents([.height(sentSuccess ? 360 : 460)])
+        .presentationDetents([.height(sentSuccess ? 360 : 520)])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(28)
     }
@@ -1839,20 +1892,20 @@ struct OtherUserProfileSheet: View {
                     remainingCredits: usageLimits.remainingAI,
                     isSending: $vibeSending,
                     sentSuccess: $vibeSentSuccess
-                ) {
+                ) { finalMessage in
                     guard let myId = auth.session?.user.id else { return }
                     vibeSending = true
                     Task {
                         do {
                             // Deduct 5 AI credits
                             for _ in 0..<5 { UsageLimitService.shared.recordAIUse() }
-                            // Record swipe + message
+                            // Record swipe + custom message
                             try await SwipeService.shared.upsertSwipeWithMessage(
-                                swiperId: myId, targetId: userId, message: vibe
+                                swiperId: myId, targetId: userId, message: finalMessage
                             )
                             // If already matched → also send as first message
                             if let matchId = await SwipeService.shared.matchIdIfExists(myUserId: myId, otherUserId: userId) {
-                                try? await SwipeService.shared.sendMessage(matchId: matchId, senderId: myId, text: vibe)
+                                try? await SwipeService.shared.sendMessage(matchId: matchId, senderId: myId, text: finalMessage)
                             }
                             vibeSending = false
                             vibeSentSuccess = true

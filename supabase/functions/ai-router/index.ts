@@ -158,9 +158,15 @@ Deno.serve(async (req) => {
   );
 
   // ── 11. Async writeback (don't await) ─────────────────────────────────────
-  EdgeRuntime.waitUntil(
+  try {
+    EdgeRuntime.waitUntil(
+      writebackMemory(supabase, user.id, conversation_id, task_type as TaskType, body, response, eventId)
+    );
+  } catch {
+    // EdgeRuntime.waitUntil not critical — fire-and-forget fallback
     writebackMemory(supabase, user.id, conversation_id, task_type as TaskType, body, response, eventId)
-  );
+      .catch((e) => console.error("[writeback] fallback error:", e));
+  }
 
   return json({ ...response, event_id: eventId });
 

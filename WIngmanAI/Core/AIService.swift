@@ -16,16 +16,15 @@ final class AIService {
     // static var accessToken: String?
 
     private func callFunction(_ name: String, body: Data) async throws -> Data {
-        return try await callFunctionWithToken(name, body: body, isRetry: false)
-    }
-
-    private func callFunctionWithToken(_ name: String, body: Data, isRetry: Bool) async throws -> Data {
-        // Get a valid token — session property auto-refreshes if expired
+        // Use async session (SDK auto-refreshes only when actually expired).
+        // Never force-refresh — that conflicts with autoRefreshToken and causes
+        // refresh-token rotation errors when multiple calls happen concurrently.
         let token: String
-        if isRetry {
-            token = try await SupabaseClientProvider.shared.client.auth.refreshSession().accessToken
-        } else {
+        do {
             token = try await SupabaseClientProvider.shared.client.auth.session.accessToken
+        } catch {
+            throw NSError(domain: "AIService", code: 401,
+                          userInfo: [NSLocalizedDescriptionKey: "Sitzung abgelaufen. Bitte melde dich erneut an."])
         }
 
         let url = SupabaseClientProvider.shared.supabaseURL
@@ -41,11 +40,6 @@ final class AIService {
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
 
-        // 401 → try once more with a force-refreshed token
-        if http.statusCode == 401, !isRetry {
-            return try await callFunctionWithToken(name, body: body, isRetry: true)
-        }
-
         guard (200...299).contains(http.statusCode) else {
             struct ErrorBody: Decodable { let error: String? }
             let bodyMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
@@ -54,6 +48,7 @@ final class AIService {
         }
         return data
     }
+
 
     func generateBio(input: BioInput) async throws -> BioResponse {
         let body = try JSONEncoder.ai.encode(BioPayload(from: input))
@@ -71,6 +66,16 @@ final class AIService {
         let body = try JSONEncoder.ai.encode(HooksPayload(from: input))
         let data = try await callFunction("ai-hooks", body: body)
         return try JSONDecoder().decode(HooksResponse.self, from: data)
+    }
+
+    /// Returns (flagged, reason) for a photo URL. Fails open on error.
+    func moderatePhoto(imageUrl: String) async -> (flagged: Bool, reason: String?) {
+        struct Payload: Encodable { let image_url: String }
+        struct Result: Decodable { let flagged: Bool; let reason: String? }
+        guard let body = try? JSONEncoder.ai.encode(Payload(image_url: imageUrl)) else { return (false, nil) }
+        guard let data = try? await callFunction("ai-moderate", body: body) else { return (false, nil) }
+        let r = try? JSONDecoder().decode(Result.self, from: data)
+        return (r?.flagged ?? false, r?.reason)
     }
 
     func generateChatSuggestions(input: WingmanInput) async throws -> WingmanResponse {

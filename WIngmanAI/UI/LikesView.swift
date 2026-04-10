@@ -21,6 +21,9 @@ struct LikesView: View {
     @State private var countdownText: String = ""
     @State private var countdownTimer: Timer? = nil
     @State private var errorText: String? = nil
+    @State private var matchedLiker: LikerProfile? = nil
+    @State private var matchId: UUID? = nil
+    @State private var shouldDismissAfterMatch = false
 
     private let brand    = Color(.sRGB, red: 0xE8/255.0, green: 0x60/255.0, blue: 0x7A/255.0, opacity: 1.0)
     private let brandAlt = Color(.sRGB, red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x5B/255.0, opacity: 1.0)
@@ -92,6 +95,25 @@ struct LikesView: View {
         .task { await loadLikers() }
         .onDisappear { countdownTimer?.invalidate() }
         .sheet(isPresented: $showSubscription) { SubscriptionView() }
+        .fullScreenCover(item: $matchedLiker) { liker in
+            MatchOverlayView(
+                name: liker.displayName,
+                photoUrl: liker.photoUrl,
+                onChat: {
+                    shouldDismissAfterMatch = true
+                    matchedLiker = nil
+                },
+                onContinue: {
+                    matchedLiker = nil
+                }
+            )
+        }
+        .onChange(of: matchedLiker) { _, newValue in
+            if newValue == nil && shouldDismissAfterMatch {
+                shouldDismissAfterMatch = false
+                dismiss()
+            }
+        }
     }
 
     // MARK: - Empty State
@@ -416,17 +438,23 @@ struct LikesView: View {
         ids.append(liker.userId.uuidString)
         UserDefaults.standard.set(ids, forKey: revealedIdsKey)
 
-        if liked {
-            Task { try? await SwipeService.shared.upsertSwipe(swiperId: myId, targetId: liker.userId, isLike: true) }
-        }
-
         // Remove from list and reset revealed
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             likers.removeFirst()
             revealedId = nil
         }
 
-        // Cooldown already set at reveal; start showing countdown for next
+        if liked {
+            Task {
+                try? await SwipeService.shared.upsertSwipe(swiperId: myId, targetId: liker.userId, isLike: true)
+                // They already liked us → always a match
+                if let mid = await SwipeService.shared.matchIdIfExists(myUserId: myId, otherUserId: liker.userId) {
+                    matchId = mid
+                    matchedLiker = liker
+                }
+            }
+        }
+
         startCountdownTimer()
     }
 
@@ -463,8 +491,18 @@ struct LikesView: View {
                 .order("created_at", ascending: false)
                 .execute().value
 
-            // 2. IDs I've already acted on
-            let acted = revealedIds
+            // 2. IDs already matched (fetch from matches table)
+            struct MatchRow: Decodable { let user_low: UUID; let user_high: UUID }
+            let matches: [MatchRow] = (try? await client
+                .from("matches")
+                .select("user_low,user_high")
+                .or("user_low.eq.\(myId.uuidString),user_high.eq.\(myId.uuidString)")
+                .execute()
+                .value) ?? []
+            let matchedUserIds: Set<UUID> = Set(matches.flatMap { [$0.user_low, $0.user_high] }).subtracting([myId])
+
+            // 3. IDs I've already acted on (revealed + matched)
+            let acted = revealedIds.union(matchedUserIds)
             let pending = liked.filter { !acted.contains($0.swiper_id) }
 
             if pending.isEmpty {
@@ -472,7 +510,7 @@ struct LikesView: View {
                 return
             }
 
-            // 3. Load profiles for pending likers
+            // 4. Load profiles for pending likers
             let ids = pending.prefix(50).map { $0.swiper_id.uuidString }
 
             struct ProfileRow: Decodable {
@@ -561,7 +599,7 @@ struct LikesView: View {
 
 // MARK: - Model
 
-struct LikerProfile: Identifiable {
+struct LikerProfile: Identifiable, Equatable {
     var id: UUID { userId }
     let userId: UUID
     let displayName: String

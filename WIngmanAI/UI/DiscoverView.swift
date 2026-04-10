@@ -77,27 +77,27 @@ struct DiscoverView: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 14) {
-                            // Likes button
+                            // Likes button — badge baked into label so toolbar never clips it
                             Button {
                                 showLikesView = true
                             } label: {
-                                Image(systemName: "heart.fill")
-                                    .font(.body)
-                                    .foregroundStyle(pendingLikesCount > 0 ? brandColor : Color(.systemGray3))
-                            }
-                            .accessibilityLabel(pendingLikesCount > 0 ? "Likes anzeigen (\(pendingLikesCount))" : "Likes anzeigen")
-                            .overlay(alignment: .topTrailing) {
-                                if pendingLikesCount > 0 {
-                                    ZStack {
-                                        Circle().fill(brandColor).frame(width: 16, height: 16)
+                                ZStack(alignment: .topTrailing) {
+                                    Image(systemName: "heart.fill")
+                                        .font(.body)
+                                        .foregroundStyle(pendingLikesCount > 0 ? brandColor : Color(.systemGray3))
+                                        .padding(.trailing, pendingLikesCount > 0 ? 6 : 0)
+                                        .padding(.top, pendingLikesCount > 0 ? 6 : 0)
+
+                                    if pendingLikesCount > 0 {
                                         Text(pendingLikesCount > 9 ? "9+" : "\(pendingLikesCount)")
                                             .font(.system(size: 9, weight: .bold))
                                             .foregroundStyle(.white)
+                                            .frame(width: 16, height: 16)
+                                            .background(Circle().fill(brandColor))
                                     }
-                                    .offset(x: 8, y: -4)
                                 }
                             }
-                            .clipped(false)
+                            .accessibilityLabel(pendingLikesCount > 0 ? "Likes anzeigen (\(pendingLikesCount))" : "Likes anzeigen")
 
                             // Filter button
                             Button {
@@ -318,7 +318,7 @@ struct DiscoverView: View {
         } else if vm.currentProfile != nil {
             let stack = Array(vm.profiles.prefix(3))
             GeometryReader { geo in
-            let cardH = max(500, geo.size.height - 88)
+            let cardH = max(500, geo.size.height - 84)
 
             VStack(spacing: 6) {
                 ZStack {
@@ -452,10 +452,10 @@ struct DiscoverView: View {
                                     .fill(Color(.systemBackground))
                                     .shadow(color: .black.opacity(0.10), radius: 8, y: 3)
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 20, weight: .bold))
+                                    .font(.system(size: 18, weight: .bold))
                                     .foregroundStyle(Color(.systemGray2))
                             }
-                            .frame(width: 56, height: 56)
+                            .frame(width: 52, height: 52)
                         }
                         .accessibilityLabel("Nein")
                         .disabled(vm.isSwiping || vm.isLoading)
@@ -489,7 +489,7 @@ struct DiscoverView: View {
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .frame(width: 52, height: 52)
+                            .frame(width: 54, height: 54)
                         }
                         .accessibilityLabel("Super Like")
                         .disabled(vm.isSwiping || vm.isLoading)
@@ -518,10 +518,10 @@ struct DiscoverView: View {
                                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                                     .shadow(color: brandColor.opacity(0.35), radius: 10, y: 4)
                                 Image(systemName: "heart.fill")
-                                    .font(.system(size: 21, weight: .bold))
+                                    .font(.system(size: 23, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .frame(width: 56, height: 56)
+                            .frame(width: 62, height: 62)
                         }
                         .accessibilityLabel("Like")
                         .disabled(vm.isSwiping || vm.isLoading)
@@ -532,7 +532,7 @@ struct DiscoverView: View {
 
                     Spacer()
                 }
-                .frame(height: 72)
+                .frame(height: 88)
             }
             .padding(.horizontal, 12)
             .padding(.top, 2)
@@ -1311,8 +1311,8 @@ private struct ProfileCard: View {
                 // Gradient overlay: only bottom 35% — more photo visible
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0.60),
-                        .init(color: .black.opacity(0.55), location: 0.82),
+                        .init(color: .clear, location: 0.65),
+                        .init(color: .black.opacity(0.55), location: 0.84),
                         .init(color: .black.opacity(0.88), location: 1.0)
                     ],
                     startPoint: .top,
@@ -1398,19 +1398,15 @@ private struct ProfileCard: View {
                             .padding(.top, 2)
                     }
 
-                    // Full profile pill
+                    // Minimal profile tap indicator
                     if let onShowProfile {
                         Button(action: onShowProfile) {
-                            HStack(spacing: 5) {
-                                Text("Vollständiges Profil")
-                                    .font(.caption.weight(.semibold))
-                                Image(systemName: "chevron.up")
-                                    .font(.system(size: 10, weight: .bold))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.white.opacity(0.18), in: Capsule())
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.70))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 5)
+                                .background(.white.opacity(0.14), in: Capsule())
                         }
                         .buttonStyle(.plain)
                         .padding(.top, 4)
@@ -1471,7 +1467,7 @@ private struct ProfileCard: View {
     }
 }
 
-private struct MatchOverlayView: View {
+struct MatchOverlayView: View {
     let name: String
     let photoUrl: String?
     let onChat: () -> Void
