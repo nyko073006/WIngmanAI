@@ -42,7 +42,9 @@ final class AIService {
 
         guard (200...299).contains(http.statusCode) else {
             struct ErrorBody: Decodable { let error: String? }
+            let rawBody = String(data: data, encoding: .utf8) ?? "<non-utf8>"
             let bodyMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
+            print("[AIService] \(name) HTTP \(http.statusCode): \(rawBody)")
             throw NSError(domain: "AIService", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey: bodyMsg ?? "HTTP \(http.statusCode)"])
         }

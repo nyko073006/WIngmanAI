@@ -56,8 +56,13 @@ Deno.serve(async (req) => {
   if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
   // ── 2. Rate limit ─────────────────────────────────────────────────────────
-  const { data: allowed } = await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
-  if (!allowed) return json({ error: "Daily AI limit reached. Upgrade to get more." }, 429);
+  const { data: allowed, error: rpcError } = await supabase.rpc("consume_ai_credit", { p_user_id: user.id });
+  if (rpcError) {
+    // RPC unavailable or schema mismatch — fail open so users aren't blocked
+    console.error("[ai-router] consume_ai_credit RPC error:", rpcError.message);
+  } else if (allowed === false) {
+    return json({ error: "Daily AI limit reached. Upgrade to get more." }, 429);
+  }
 
   // ── 3. Parse input ─────────────────────────────────────────────────────────
   const body = await req.json();
@@ -231,7 +236,7 @@ async function logEvent(
   model: string | null, tokensIn: number | null, tokensOut: number | null,
   moderationResult: any
 ) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("ai_events")
     .insert({
       user_id: userId,
@@ -247,6 +252,7 @@ async function logEvent(
     })
     .select("id")
     .single();
+  if (error) console.error("[ai-router] logEvent error:", error.message);
   return data?.id;
 }
 
