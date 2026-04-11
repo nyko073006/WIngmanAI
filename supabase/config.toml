@@ -388,6 +388,21 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/ai-router/index.ts"
 
+[functions.send-push]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-push/index.ts"
+
+[functions.send-push-match]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-push-match/index.ts"
+
+[functions.send-push-debrief]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-push-debrief/index.ts"
+
 [functions.ai-bio]
 enabled = true
 verify_jwt = false
