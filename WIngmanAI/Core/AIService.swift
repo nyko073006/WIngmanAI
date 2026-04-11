@@ -15,21 +15,21 @@ final class AIService {
     // No longer using static accessToken, we fetch dynamically to prevent stale token 401s
     // static var accessToken: String?
 
-    private func callFunction(_ name: String, body: Data) async throws -> Data {
-        // Use async session (SDK auto-refreshes only when actually expired).
-        // Never force-refresh — that conflicts with autoRefreshToken and causes
-        // refresh-token rotation errors when multiple calls happen concurrently.
+    private func callFunction(_ name: String, body: Data, retry: Bool = true) async throws -> Data {
+        let supabase = SupabaseClientProvider.shared.client
+
+        // Get a fresh token — SDK auto-refreshes within 30s of expiry.
         let token: String
         do {
-            token = try await SupabaseClientProvider.shared.client.auth.session.accessToken
+            token = try await supabase.auth.session.accessToken
         } catch {
+            print("[AIService] session missing for \(name): \(error)")
             throw NSError(domain: "AIService", code: 401,
                           userInfo: [NSLocalizedDescriptionKey: "Sitzung abgelaufen. Bitte melde dich erneut an."])
         }
 
         let url = SupabaseClientProvider.shared.supabaseURL
             .appendingPathComponent("functions/v1/\(name)")
-
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.httpBody = body
@@ -41,10 +41,21 @@ final class AIService {
         guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
 
         guard (200...299).contains(http.statusCode) else {
-            struct ErrorBody: Decodable { let error: String? }
+            // Parse both {"error":"..."} and {"code":N,"message":"..."} formats
+            struct ErrorBody1: Decodable { let error: String? }
+            struct ErrorBody2: Decodable { let message: String? }
             let rawBody = String(data: data, encoding: .utf8) ?? "<non-utf8>"
-            let bodyMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
+            let bodyMsg = (try? JSONDecoder().decode(ErrorBody1.self, from: data))?.error
+                       ?? (try? JSONDecoder().decode(ErrorBody2.self, from: data))?.message
             print("[AIService] \(name) HTTP \(http.statusCode): \(rawBody)")
+
+            // On 401 Invalid JWT: force-refresh session and retry once
+            if http.statusCode == 401 && retry {
+                print("[AIService] 401 received — force-refreshing session and retrying")
+                _ = try? await supabase.auth.refreshSession()
+                return try await callFunction(name, body: body, retry: false)
+            }
+
             throw NSError(domain: "AIService", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey: bodyMsg ?? "HTTP \(http.statusCode)"])
         }
