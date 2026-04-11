@@ -23,6 +23,9 @@ struct AppRootView: View {
             .task(id: auth.session?.user.id) {
                 await refreshOnboardingState()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .wingmanSessionExpired)) { _ in
+                Task { await auth.forceSignOut() }
+            }
             .alert(
                 auth.error?.title ?? "Fehler",
                 isPresented: Binding(

@@ -56,6 +56,12 @@ final class AIService {
                 return try await callFunction(name, body: body, retry: false)
             }
 
+            // Persistent 401 after retry → session is permanently broken, force sign-out
+            if http.statusCode == 401 {
+                print("[AIService] Persistent 401 — session invalid, triggering auto sign-out")
+                NotificationCenter.default.post(name: .wingmanSessionExpired, object: nil)
+            }
+
             throw NSError(domain: "AIService", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey: bodyMsg ?? "HTTP \(http.statusCode)"])
         }
@@ -428,6 +434,12 @@ struct WingmanVariant: Codable, Identifiable {
 struct WingmanUIHints: Codable {
     var tone: String?
     var length: String?
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let wingmanSessionExpired = Notification.Name("WingmanSessionExpired")
 }
 
 // MARK: - JSON helpers

@@ -154,6 +154,12 @@ final class AppAuthService: ObservableObject {
         }
     }
 
+    /// Called when a persistent 401 is detected — clears local session regardless of network state.
+    func forceSignOut() async {
+        _ = try? await client.auth.signOut()
+        setSession(nil)
+    }
+
     // MARK: - Google Sign In
 
     private func randomNonceString(length: Int = 32) -> String {
