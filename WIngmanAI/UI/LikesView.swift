@@ -219,7 +219,7 @@ struct LikesView: View {
                             }
                         }
                         if let city = liker.city, !city.isEmpty {
-                            Label(city, systemImage: "mappin.fill")
+                            Label(city, systemImage: "mappin")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.white.opacity(0.72))
                         }
