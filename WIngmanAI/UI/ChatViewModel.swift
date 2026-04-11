@@ -367,7 +367,7 @@ final class ChatViewModel: ObservableObject {
 
         let bucket = "message-photos"
         let path = "\(matchId.uuidString.lowercased())/\(UUID().uuidString.lowercased()).jpg"
-        let accessToken = SupabaseClientProvider.shared.client.auth.currentSession?.accessToken ?? ""
+        let accessToken = (try? await SupabaseClientProvider.shared.client.auth.session.accessToken) ?? ""
 
         do {
             let url = SupabaseClientProvider.shared.supabaseURL
@@ -411,6 +411,7 @@ final class ChatViewModel: ObservableObject {
 
         let mid = currentMatchId
         let ch = channel
+        // Capture before nil so typing-off can still be sent
         channel = nil
         currentMatchId = nil
 
@@ -420,8 +421,13 @@ final class ChatViewModel: ObservableObject {
         typingTimeoutTask = nil
         otherIsTyping = false
 
-        if let mid {
-            await sendTypingOff(matchId: mid)
+        // Send typing=false using the captured channel before removal
+        if let mid, let ch {
+            try? await ch.broadcast(event: "typing", message: [
+                "user_id": myUserId?.uuidString ?? "",
+                "match_id": mid.uuidString,
+                "typing": "false"
+            ])
         }
 
         if let ch { await client.realtimeV2.removeChannel(ch) }

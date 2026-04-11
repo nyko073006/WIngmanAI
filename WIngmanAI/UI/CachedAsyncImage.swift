@@ -55,8 +55,7 @@ final class ImageCache {
         }
     }
 
-    /// Preloads and caches an image if not already cached.
-    @MainActor
+    /// Preloads and caches an image if not already cached. Nonisolated — safe to call from any task.
     func preload(_ url: URL) async {
         if get(url) != nil { return }
 

@@ -993,8 +993,8 @@ private struct SearchSettingsSheet: View {
                                         isOn: interestedIn.isEmpty || interestedIn.contains(g)
                                     ) {
                                         if interestedIn.isEmpty {
-                                            // First tap: select only this one
-                                            interestedIn = Set(genders.filter { $0 != g })
+                                            // From "all" state: select only this one gender
+                                            interestedIn = Set([g])
                                         } else if interestedIn.contains(g) {
                                             interestedIn.remove(g)
                                             if interestedIn.isEmpty { interestedIn = [] } // = all
